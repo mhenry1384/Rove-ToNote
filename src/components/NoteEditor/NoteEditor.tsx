@@ -4,6 +4,7 @@ import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { TodoEditor } from "./TodoEditor";
 import { noteColorBg, NOTE_TEXT_COLOR } from "../../document/noteColors";
 import {
   decryptString,
@@ -12,10 +13,6 @@ import {
   serializeEnvelope,
 } from "../../document/crypto/vaultCrypto";
 
-/**
- * Todo-list notes still use a plain textarea until the real Todoist-style
- * editor is wired in; markdown notes get the WYSIWYG Milkdown/Crepe editor.
- */
 export function NoteEditor() {
   const selectedNoteId = useSelectionStore((s) => s.selectedNoteId);
   const note = useDocumentStore((s) =>
@@ -120,12 +117,7 @@ export function NoteEditor() {
           onChange={handleChange}
         />
       ) : (
-        <textarea
-          className="note-editor__textarea"
-          value={content}
-          placeholder="(To-do list editor coming soon — raw markdown for now)"
-          onChange={(e) => handleChange(e.target.value)}
-        />
+        <TodoEditor content={content} onChange={handleChange} />
       )}
     </div>
   );
