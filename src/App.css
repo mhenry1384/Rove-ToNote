@@ -564,10 +564,17 @@ body {
 .markdown-editor .milkdown {
   --crepe-color-background: transparent;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.markdown-editor .milkdown .milkdown-top-bar {
+  flex-shrink: 0;
 }
 
 .markdown-editor .milkdown .ProseMirror {
   padding: 0 0 24px;
+  flex: 1;
 }
 
 .markdown-editor .milkdown .milkdown-top-bar .top-bar-item {
