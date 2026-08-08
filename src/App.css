@@ -280,6 +280,120 @@ body {
   display: inline-flex;
 }
 
+.tree-item__row--colored {
+  background: var(--note-color);
+  color: #fff;
+}
+
+.tree-item__row--colored:hover {
+  filter: brightness(1.15);
+}
+
+.tree-item__row--colored.tree-item__row--selected {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.tree-item__row--colored .tree-item__icon,
+.tree-item__row--colored .tree-item__lock,
+.tree-item__row--colored .tree-item__chevron {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.tree-item__row--colored .tree-item__more {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.tree-item__row--colored .tree-item__more:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+/* Note "more actions" popover */
+
+.note-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.note-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-menu__item:hover {
+  background: var(--bg-hover);
+}
+
+.note-menu__divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--border);
+}
+
+.note-menu__label {
+  padding: 2px 8px 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.note-menu__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 6px 4px;
+}
+
+.note-color-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.note-color-swatch--none {
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.note-color-swatch--none::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--danger) calc(50% - 1px),
+    var(--danger) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
+.note-color-swatch--selected {
+  border-color: var(--accent);
+}
+
 .tree-item__rename-input {
   flex: 1;
   font-size: 0.9rem;
@@ -319,6 +433,32 @@ body {
   font-family: inherit;
   font-size: 1rem;
   line-height: 1.5;
+}
+
+.note-editor--colored .note-editor__textarea {
+  color: #fff;
+}
+
+.note-editor--colored .note-editor__textarea::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.note-editor--colored .markdown-editor .milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: #fff;
+  --crepe-color-surface: transparent;
+  --crepe-color-surface-low: rgba(255, 255, 255, 0.08);
+  --crepe-color-on-surface: #fff;
+  --crepe-color-on-surface-variant: rgba(255, 255, 255, 0.75);
+  --crepe-color-outline: rgba(255, 255, 255, 0.4);
+  --crepe-color-primary: #fff;
+  --crepe-color-secondary: rgba(255, 255, 255, 0.2);
+  --crepe-color-on-secondary: #fff;
+  --crepe-color-inverse: #2a2a2a;
+  --crepe-color-on-inverse: #fff;
+  --crepe-color-hover: rgba(255, 255, 255, 0.12);
+  --crepe-color-selected: rgba(255, 255, 255, 0.2);
+  --crepe-color-inline-area: rgba(255, 255, 255, 0.12);
 }
 
 .markdown-editor {

@@ -45,6 +45,7 @@ interface DocumentState {
     afterId: string | null,
   ) => void;
   setNoteContent: (id: string, content: string) => void;
+  setNoteColor: (id: string, color: string | null) => void;
   /** Content must already be plaintext or ciphertext-envelope JSON as appropriate — encryption itself lives in crypto/. */
   setEncrypted: (id: string, encrypted: boolean, content: string) => void;
   setVault: (vault: VaultInfo) => void;
@@ -245,6 +246,15 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         ...doc,
         notes: doc.notes.map((n) =>
           n.id === id ? { ...n, content, updatedAt: nowIso() } : n,
+        ),
+      }));
+    },
+
+    setNoteColor: (id, color) => {
+      mutate((doc) => ({
+        ...doc,
+        notes: doc.notes.map((n) =>
+          n.id === id ? { ...n, color, updatedAt: nowIso() } : n,
         ),
       }));
     },

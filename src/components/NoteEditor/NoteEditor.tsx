@@ -1,6 +1,7 @@
 import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { noteColorBg } from "../../document/noteColors";
 
 /**
  * Todo-list notes still use a plain textarea until the real Todoist-style
@@ -20,8 +21,14 @@ export function NoteEditor() {
     );
   }
 
+  const colorBg = noteColorBg(note.color);
+
   return (
-    <div className="note-editor" key={note.id}>
+    <div
+      className={`note-editor${colorBg ? " note-editor--colored" : ""}`}
+      key={note.id}
+      style={colorBg ? { background: colorBg, color: "#fff" } : undefined}
+    >
       <h2 className="note-editor__title">{note.title}</h2>
       {note.type === "markdown" ? (
         <MarkdownEditor

@@ -11,6 +11,8 @@ export interface NoteMeta {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+  /** Background color id (see noteColors.ts), or absent/null for the default background. */
+  color?: string | null;
 }
 
 export interface VaultInfo {

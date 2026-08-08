@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, FileText, ListChecks, Lock, MoreHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, ListChecks, Lock, MoreHorizontal, Trash2 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { useDocumentStore } from "../../document/documentStore";
 import { usePrefsStore } from "../../stores/usePrefsStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
 import { findPreviousSibling, type TreeNode } from "../../document/treeUtils";
 import { confirmAndDeleteNote } from "../../document/noteActions";
+import { NOTE_COLORS, noteColorBg } from "../../document/noteColors";
 
 interface NoteTreeItemProps {
   node: TreeNode;
@@ -27,7 +27,10 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(node.title);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const {
     setNodeRef,
@@ -101,20 +104,36 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
     }
   }
 
-  const Icon = node.type === "todo" ? ListChecks : FileText;
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    function handlePointerDown(e: MouseEvent) {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      if (moreButtonRef.current?.contains(e.target as Node)) return;
+      setIsMenuOpen(false);
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setIsMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMenuOpen]);
 
-  async function handleMoreClick(e: React.MouseEvent) {
+  const Icon = node.type === "todo" ? ListChecks : FileText;
+  const colorBg = noteColorBg(node.color);
+
+  function handleMoreClick(e: React.MouseEvent) {
     e.stopPropagation();
-    setIsMenuOpen(true);
-    const menu = await Menu.new({
-      items: [
-        await MenuItem.new({
-          text: "Delete",
-          action: () => void confirmAndDeleteNote(node.id),
-        }),
-      ],
-    });
-    await menu.popup();
+    const rect = moreButtonRef.current?.getBoundingClientRect();
+    if (rect) setMenuPos({ top: rect.bottom + 4, left: rect.left });
+    setIsMenuOpen((open) => !open);
+  }
+
+  function handlePickColor(colorId: string | null) {
+    useDocumentStore.getState().setNoteColor(node.id, colorId);
     setIsMenuOpen(false);
   }
 
@@ -123,8 +142,11 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
       <div
         {...attributes}
         {...listeners}
-        className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}`}
-        style={{ paddingLeft: 8 + depth * 16 }}
+        className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}${colorBg ? " tree-item__row--colored" : ""}`}
+        style={{
+          paddingLeft: 8 + depth * 16,
+          ...(colorBg ? ({ "--note-color": colorBg } as React.CSSProperties) : {}),
+        }}
         tabIndex={0}
         role="treeitem"
         aria-selected={isSelected}
@@ -169,15 +191,56 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
         )}
         {node.isEncrypted && <Lock size={12} className="tree-item__lock" />}
         <button
+          ref={moreButtonRef}
           type="button"
           className="tree-item__more"
           tabIndex={-1}
           title="More actions"
-          onClick={(e) => void handleMoreClick(e)}
+          onClick={handleMoreClick}
         >
           <MoreHorizontal size={14} />
         </button>
       </div>
+      {isMenuOpen && menuPos && (
+        <div
+          ref={menuRef}
+          className="note-menu"
+          style={{ top: menuPos.top, left: menuPos.left }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="note-menu__item"
+            onClick={() => {
+              setIsMenuOpen(false);
+              void confirmAndDeleteNote(node.id);
+            }}
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+          <div className="note-menu__divider" />
+          <div className="note-menu__label">Background color</div>
+          <div className="note-menu__swatches">
+            <button
+              type="button"
+              className={`note-color-swatch note-color-swatch--none${!node.color ? " note-color-swatch--selected" : ""}`}
+              title="Default"
+              onClick={() => handlePickColor(null)}
+            />
+            {NOTE_COLORS.map((color) => (
+              <button
+                key={color.id}
+                type="button"
+                className={`note-color-swatch${node.color === color.id ? " note-color-swatch--selected" : ""}`}
+                style={{ background: color.bg }}
+                title={color.label}
+                onClick={() => handlePickColor(color.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
       {hasChildren && isExpanded && (
         <div role="group">
           {node.children.map((child) => (
