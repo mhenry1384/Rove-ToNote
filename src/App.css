@@ -269,6 +269,7 @@ body {
 }
 
 .tree-item__row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -277,6 +278,15 @@ body {
   border-radius: 4px;
   margin: 0 2px;
   outline: none;
+}
+
+.tree-item__color-stripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px 0 0 4px;
+  pointer-events: none;
 }
 
 .tree-item__row:hover {
@@ -351,34 +361,6 @@ body {
 .tree-item__row:hover .tree-item__more,
 .tree-item__row--menu-open .tree-item__more {
   display: inline-flex;
-}
-
-.tree-item__row--colored {
-  background: var(--note-color);
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.tree-item__row--colored:hover {
-  filter: brightness(1.15);
-}
-
-.tree-item__row--colored.tree-item__row--selected {
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
-}
-
-.tree-item__row--colored .tree-item__icon,
-.tree-item__row--colored .tree-item__lock,
-.tree-item__row--colored .tree-item__chevron {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.tree-item__row--colored .tree-item__more {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.tree-item__row--colored .tree-item__more:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.9);
 }
 
 /* Note "more actions" popover */

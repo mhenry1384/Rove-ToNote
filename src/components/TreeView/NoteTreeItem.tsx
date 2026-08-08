@@ -155,11 +155,8 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
       <div
         {...attributes}
         {...listeners}
-        className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}${colorBg ? " tree-item__row--colored" : ""}`}
-        style={{
-          paddingLeft: 4 + depth * 14,
-          ...(colorBg ? ({ "--note-color": colorBg } as React.CSSProperties) : {}),
-        }}
+        className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}`}
+        style={{ paddingLeft: 4 + depth * 14 }}
         tabIndex={0}
         role="treeitem"
         aria-selected={isSelected}
@@ -171,6 +168,12 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
         }}
         onKeyDown={handleKeyDown}
       >
+        {colorBg && (
+          <div
+            className="tree-item__color-stripe"
+            style={{ width: 4 + depth * 14, background: colorBg }}
+          />
+        )}
         <button
           type="button"
           className={`tree-item__chevron${hasChildren ? "" : " tree-item__chevron--hidden"}`}
@@ -182,7 +185,11 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
         >
           {hasChildren && (isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
         </button>
-        <Icon size={14} className="tree-item__icon" />
+        <Icon
+          size={14}
+          className="tree-item__icon"
+          style={colorBg ? { color: colorBg } : undefined}
+        />
         {isEditing ? (
           <input
             ref={inputRef}
@@ -236,31 +243,37 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
             {node.isEncrypted ? <Unlock size={14} /> : <Lock size={14} />}
             {node.isEncrypted ? "Decrypt" : "Encrypt"}
           </button>
-          <div className="note-menu__divider" />
-          <button
-            type="button"
-            className="note-menu__item"
-            disabled={!canIndent}
-            onClick={() => {
-              setIsMenuOpen(false);
-              indent();
-            }}
-          >
-            <ListIndentIncrease size={14} />
-            Indent (make sub-item)
-          </button>
-          <button
-            type="button"
-            className="note-menu__item"
-            disabled={node.parentId === null}
-            onClick={() => {
-              setIsMenuOpen(false);
-              outdent();
-            }}
-          >
-            <ListIndentDecrease size={14} />
-            Outdent
-          </button>
+          {(canIndent || node.parentId !== null) && (
+            <>
+              <div className="note-menu__divider" />
+              {canIndent && (
+                <button
+                  type="button"
+                  className="note-menu__item"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    indent();
+                  }}
+                >
+                  <ListIndentIncrease size={14} />
+                  Indent (make sub-item)
+                </button>
+              )}
+              {node.parentId !== null && (
+                <button
+                  type="button"
+                  className="note-menu__item"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    outdent();
+                  }}
+                >
+                  <ListIndentDecrease size={14} />
+                  Outdent
+                </button>
+              )}
+            </>
+          )}
           <div className="note-menu__divider" />
           <div className="note-menu__label">Background color</div>
           <div className="note-menu__swatches">

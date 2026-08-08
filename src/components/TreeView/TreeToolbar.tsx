@@ -1,7 +1,7 @@
 import { FilePlus, ListPlus, Trash2 } from "lucide-react";
 import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
-import { confirmAndDeleteNote } from "../../document/noteActions";
+import { confirmAndDeleteNote, isNoteEmpty } from "../../document/noteActions";
 import type { NoteType } from "../../document/types";
 
 export function TreeToolbar() {
@@ -12,6 +12,19 @@ export function TreeToolbar() {
     const selected = doc?.notes.find((n) => n.id === selectedNoteId);
     const parentId = selected?.parentId ?? null;
     const title = type === "todo" ? "New To-Do List" : "New Note";
+
+    const existingBlank = doc?.notes.find(
+      (n) =>
+        n.parentId === parentId &&
+        n.type === type &&
+        n.title === title &&
+        isNoteEmpty(n),
+    );
+    if (existingBlank) {
+      useSelectionStore.getState().selectAndRename(existingBlank.id);
+      return;
+    }
+
     const note = useDocumentStore.getState().createNote(parentId, title, type);
     useSelectionStore.getState().selectAndRename(note.id);
   }

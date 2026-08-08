@@ -11,7 +11,7 @@ import {
   serializeEnvelope,
 } from "./crypto/vaultCrypto";
 
-function isNoteEmpty(note: NoteMeta): boolean {
+export function isNoteEmpty(note: NoteMeta): boolean {
   if (note.type === "todo") {
     return parseTodoMarkdown(note.content).items.length === 0;
   }

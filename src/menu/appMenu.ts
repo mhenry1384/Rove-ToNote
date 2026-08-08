@@ -52,7 +52,7 @@ export async function handleOpen(): Promise<void> {
   }
 }
 
-async function handleSave(): Promise<void> {
+export async function handleSave(): Promise<void> {
   try {
     await useDocumentStore.getState().save();
   } catch (err) {

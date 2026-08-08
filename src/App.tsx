@@ -5,7 +5,7 @@ import "./App.css";
 import { useDocumentStore } from "./document/documentStore";
 import { usePrefsStore } from "./stores/usePrefsStore";
 import { useVaultStore } from "./stores/useVaultStore";
-import { installAppMenu, handleNew, handleOpen } from "./menu/appMenu";
+import { installAppMenu, handleNew, handleOpen, handleSave } from "./menu/appMenu";
 import { WelcomeScreen } from "./components/Welcome/WelcomeScreen";
 import { TreeView } from "./components/TreeView/TreeView";
 import { NoteEditor } from "./components/NoteEditor/NoteEditor";
@@ -59,6 +59,17 @@ function App() {
   useEffect(() => {
     useVaultStore.getState().lock();
   }, [filePath]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void handleSave();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const bumpActivity = () => useVaultStore.getState().bumpActivity();
