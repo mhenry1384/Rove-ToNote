@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, FileText, ListChecks, Lock, MoreHorizontal, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, ListChecks, Lock, MoreHorizontal, Trash2, Unlock } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDocumentStore } from "../../document/documentStore";
 import { usePrefsStore } from "../../stores/usePrefsStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
 import { findPreviousSibling, type TreeNode } from "../../document/treeUtils";
-import { confirmAndDeleteNote } from "../../document/noteActions";
+import { confirmAndDeleteNote, decryptNote, encryptNote } from "../../document/noteActions";
 import { NOTE_COLORS, noteColorBg } from "../../document/noteColors";
 
 interface NoteTreeItemProps {
@@ -137,6 +137,12 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
     setIsMenuOpen(false);
   }
 
+  function handleToggleEncryption() {
+    setIsMenuOpen(false);
+    if (node.isEncrypted) void decryptNote(node.id);
+    else void encryptNote(node.id);
+  }
+
   return (
     <div className="tree-item" ref={setNodeRef} style={dragStyle}>
       <div
@@ -218,6 +224,10 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
           >
             <Trash2 size={14} />
             Delete
+          </button>
+          <button type="button" className="note-menu__item" onClick={handleToggleEncryption}>
+            {node.isEncrypted ? <Unlock size={14} /> : <Lock size={14} />}
+            {node.isEncrypted ? "Decrypt" : "Encrypt"}
           </button>
           <div className="note-menu__divider" />
           <div className="note-menu__label">Background color</div>

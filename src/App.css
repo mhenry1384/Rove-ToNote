@@ -132,6 +132,69 @@ body {
   cursor: default;
 }
 
+/* Vault password modal */
+
+.vault-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.vault-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 320px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.vault-modal__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.vault-modal__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.vault-modal__input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.vault-modal__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.vault-modal__error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+.vault-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 /* App shell */
 
 .app-shell {
@@ -141,11 +204,21 @@ body {
 }
 
 .app-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 6px 12px;
   border-bottom: 1px solid var(--border);
   font-size: 0.8rem;
   color: var(--text-muted);
   flex-shrink: 0;
+}
+
+.app-titlebar__file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-body {
@@ -282,7 +355,7 @@ body {
 
 .tree-item__row--colored {
   background: var(--note-color);
-  color: #fff;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .tree-item__row--colored:hover {
@@ -290,22 +363,22 @@ body {
 }
 
 .tree-item__row--colored.tree-item__row--selected {
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
 }
 
 .tree-item__row--colored .tree-item__icon,
 .tree-item__row--colored .tree-item__lock,
 .tree-item__row--colored .tree-item__chevron {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .tree-item__row--colored .tree-item__more {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .tree-item__row--colored .tree-item__more:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 /* Note "more actions" popover */
@@ -419,8 +492,29 @@ body {
   color: var(--text-muted);
 }
 
+.note-editor--locked {
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.note-editor--locked p {
+  margin: 0;
+  max-width: 320px;
+}
+
 .note-editor__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0 0 12px;
+}
+
+.note-editor__lock {
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .note-editor__textarea {
@@ -436,29 +530,29 @@ body {
 }
 
 .note-editor--colored .note-editor__textarea {
-  color: #fff;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .note-editor--colored .note-editor__textarea::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .note-editor--colored .markdown-editor .milkdown {
   --crepe-color-background: transparent;
-  --crepe-color-on-background: #fff;
+  --crepe-color-on-background: rgba(255, 255, 255, 0.78);
   --crepe-color-surface: transparent;
   --crepe-color-surface-low: rgba(255, 255, 255, 0.08);
-  --crepe-color-on-surface: #fff;
-  --crepe-color-on-surface-variant: rgba(255, 255, 255, 0.75);
-  --crepe-color-outline: rgba(255, 255, 255, 0.4);
-  --crepe-color-primary: #fff;
+  --crepe-color-on-surface: rgba(255, 255, 255, 0.78);
+  --crepe-color-on-surface-variant: rgba(255, 255, 255, 0.6);
+  --crepe-color-outline: rgba(255, 255, 255, 0.35);
+  --crepe-color-primary: rgba(255, 255, 255, 0.85);
   --crepe-color-secondary: rgba(255, 255, 255, 0.2);
-  --crepe-color-on-secondary: #fff;
+  --crepe-color-on-secondary: rgba(255, 255, 255, 0.85);
   --crepe-color-inverse: #2a2a2a;
-  --crepe-color-on-inverse: #fff;
-  --crepe-color-hover: rgba(255, 255, 255, 0.12);
-  --crepe-color-selected: rgba(255, 255, 255, 0.2);
-  --crepe-color-inline-area: rgba(255, 255, 255, 0.12);
+  --crepe-color-on-inverse: rgba(255, 255, 255, 0.85);
+  --crepe-color-hover: rgba(255, 255, 255, 0.1);
+  --crepe-color-selected: rgba(255, 255, 255, 0.18);
+  --crepe-color-inline-area: rgba(255, 255, 255, 0.1);
 }
 
 .markdown-editor {

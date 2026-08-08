@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Lock, Unlock } from "lucide-react";
 import "./App.css";
 import { useDocumentStore } from "./document/documentStore";
 import { usePrefsStore } from "./stores/usePrefsStore";
+import { useVaultStore } from "./stores/useVaultStore";
 import { installAppMenu, handleNew, handleOpen } from "./menu/appMenu";
 import { WelcomeScreen } from "./components/Welcome/WelcomeScreen";
 import { TreeView } from "./components/TreeView/TreeView";
 import { NoteEditor } from "./components/NoteEditor/NoteEditor";
+import { PasswordPrompt } from "./components/Vault/PasswordPrompt";
 
 let startupRan = false;
 
@@ -16,6 +19,7 @@ function App() {
   const filePath = useDocumentStore((s) => s.filePath);
   const isDirty = useDocumentStore((s) => s.isDirty);
   const loadError = useDocumentStore((s) => s.loadError);
+  const isVaultUnlocked = useVaultStore((s) => s.isUnlocked);
 
   useEffect(() => {
     if (startupRan) {
@@ -52,6 +56,24 @@ function App() {
     return () => unlisten?.();
   }, []);
 
+  useEffect(() => {
+    useVaultStore.getState().lock();
+  }, [filePath]);
+
+  useEffect(() => {
+    const bumpActivity = () => useVaultStore.getState().bumpActivity();
+    window.addEventListener("mousemove", bumpActivity);
+    window.addEventListener("mousedown", bumpActivity);
+    window.addEventListener("keydown", bumpActivity);
+    window.addEventListener("wheel", bumpActivity);
+    return () => {
+      window.removeEventListener("mousemove", bumpActivity);
+      window.removeEventListener("mousedown", bumpActivity);
+      window.removeEventListener("keydown", bumpActivity);
+      window.removeEventListener("wheel", bumpActivity);
+    };
+  }, []);
+
   if (isStarting) {
     return <div className="app-loading">Loading…</div>;
   }
@@ -73,7 +95,21 @@ function App() {
           {filePath}
           {isDirty ? " •" : ""}
         </span>
+        {doc.vault && (
+          <button
+            type="button"
+            className="icon-button"
+            title={isVaultUnlocked ? "Lock encrypted notes" : "Unlock encrypted notes"}
+            onClick={() => {
+              if (isVaultUnlocked) useVaultStore.getState().lock();
+              else void useVaultStore.getState().ensureUnlocked();
+            }}
+          >
+            {isVaultUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
+          </button>
+        )}
       </header>
+      <PasswordPrompt />
       <div className="app-body">
         <aside className="app-tree-pane">
           <TreeView />

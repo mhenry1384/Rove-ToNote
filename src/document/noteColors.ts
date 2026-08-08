@@ -23,3 +23,7 @@ export function noteColorBg(colorId: string | null | undefined): string | null {
   if (!colorId) return null;
   return NOTE_COLORS.find((c) => c.id === colorId)?.bg ?? null;
 }
+
+/** Softened off-white for text on a colored background — pure #fff at full
+ * opacity read as too glaring against these dark swatches. */
+export const NOTE_TEXT_COLOR = "rgba(255, 255, 255, 0.78)";
