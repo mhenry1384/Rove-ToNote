@@ -34,8 +34,8 @@ export function TreeView() {
   );
 
   function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    const { active, over, delta } = event;
+    if (!over) return;
     const currentNotes = useDocumentStore.getState().doc?.notes;
     if (!currentNotes) return;
     const move = computeDragMove(
@@ -43,6 +43,7 @@ export function TreeView() {
       visible,
       String(active.id),
       String(over.id),
+      delta.x,
     );
     if (move) {
       useDocumentStore

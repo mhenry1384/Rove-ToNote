@@ -271,11 +271,11 @@ body {
 .tree-item__row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   padding: 4px 8px 4px 0;
   cursor: pointer;
   border-radius: 4px;
-  margin: 0 4px;
+  margin: 0 2px;
   outline: none;
 }
 
@@ -295,7 +295,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
+  width: 14px;
   height: 16px;
   padding: 0;
   border: none;

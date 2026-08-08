@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, FileText, ListChecks, Lock, MoreHorizontal, Trash2, Unlock } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, ListChecks, ListIndentDecrease, ListIndentIncrease, Lock, MoreHorizontal, Trash2, Unlock } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDocumentStore } from "../../document/documentStore";
@@ -16,6 +16,7 @@ interface NoteTreeItemProps {
 
 export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
   const filePath = useDocumentStore((s) => s.filePath);
+  const notes = useDocumentStore((s) => s.doc?.notes);
   const selectedNoteId = useSelectionStore((s) => s.selectedNoteId);
   const pendingRenameId = useSelectionStore((s) => s.pendingRenameId);
   const isExpanded = usePrefsStore((s) =>
@@ -24,6 +25,7 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
 
   const isSelected = selectedNoteId === node.id;
   const hasChildren = node.children.length > 0;
+  const canIndent = !!findPreviousSibling(notes ?? [], node.id);
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(node.title);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -75,24 +77,29 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
     void usePrefsStore.getState().setExpanded(filePath, node.id, !isExpanded);
   }
 
+  function indent() {
+    const doc = useDocumentStore.getState().doc;
+    if (!doc) return;
+    const prevSiblingId = findPreviousSibling(doc.notes, node.id);
+    if (prevSiblingId) {
+      useDocumentStore.getState().reparentNote(node.id, prevSiblingId);
+      if (filePath) void usePrefsStore.getState().setExpanded(filePath, prevSiblingId, true);
+    }
+  }
+
+  function outdent() {
+    const doc = useDocumentStore.getState().doc;
+    if (!doc || node.parentId === null) return;
+    const parent = doc.notes.find((n) => n.id === node.parentId);
+    useDocumentStore.getState().reparentNote(node.id, parent?.parentId ?? null);
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (isEditing) return;
     if (e.key === "Tab") {
       e.preventDefault();
-      const doc = useDocumentStore.getState().doc;
-      if (!doc) return;
-      if (e.shiftKey) {
-        if (node.parentId !== null) {
-          const parent = doc.notes.find((n) => n.id === node.parentId);
-          useDocumentStore.getState().reparentNote(node.id, parent?.parentId ?? null);
-        }
-      } else {
-        const prevSiblingId = findPreviousSibling(doc.notes, node.id);
-        if (prevSiblingId) {
-          useDocumentStore.getState().reparentNote(node.id, prevSiblingId);
-          if (filePath) void usePrefsStore.getState().setExpanded(filePath, prevSiblingId, true);
-        }
-      }
+      if (e.shiftKey) outdent();
+      else indent();
     } else if (e.key === "F2") {
       e.preventDefault();
       setDraftTitle(node.title);
@@ -150,7 +157,7 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
         {...listeners}
         className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}${colorBg ? " tree-item__row--colored" : ""}`}
         style={{
-          paddingLeft: 8 + depth * 16,
+          paddingLeft: 4 + depth * 14,
           ...(colorBg ? ({ "--note-color": colorBg } as React.CSSProperties) : {}),
         }}
         tabIndex={0}
@@ -228,6 +235,31 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
           <button type="button" className="note-menu__item" onClick={handleToggleEncryption}>
             {node.isEncrypted ? <Unlock size={14} /> : <Lock size={14} />}
             {node.isEncrypted ? "Decrypt" : "Encrypt"}
+          </button>
+          <div className="note-menu__divider" />
+          <button
+            type="button"
+            className="note-menu__item"
+            disabled={!canIndent}
+            onClick={() => {
+              setIsMenuOpen(false);
+              indent();
+            }}
+          >
+            <ListIndentIncrease size={14} />
+            Indent (make sub-item)
+          </button>
+          <button
+            type="button"
+            className="note-menu__item"
+            disabled={node.parentId === null}
+            onClick={() => {
+              setIsMenuOpen(false);
+              outdent();
+            }}
+          >
+            <ListIndentDecrease size={14} />
+            Outdent
           </button>
           <div className="note-menu__divider" />
           <div className="note-menu__label">Background color</div>

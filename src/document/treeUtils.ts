@@ -60,6 +60,25 @@ export interface DragMoveTarget {
   afterId: string | null;
 }
 
+/** How far (in px) the pointer must move horizontally, past the natural
+ * drop position, before a drag is treated as an indent/outdent gesture. */
+const INDENT_THRESHOLD_PX = 24;
+
+/** True if `id` is `ancestorId` itself or nested (at any depth) under it. */
+function isSelfOrDescendant(
+  notes: NoteMeta[],
+  ancestorId: string,
+  id: string,
+): boolean {
+  const byId = new Map(notes.map((n) => [n.id, n]));
+  let current: string | null = id;
+  while (current) {
+    if (current === ancestorId) return true;
+    current = byId.get(current)?.parentId ?? null;
+  }
+  return false;
+}
+
 /** dnd-kit's arrayMove semantics: remove `from`, then splice the item back
  * in at `to` (evaluated against the already-shortened array). */
 function arrayMove<T>(array: T[], from: number, to: number): T[] {
@@ -71,36 +90,99 @@ function arrayMove<T>(array: T[], from: number, to: number): T[] {
 
 /**
  * Given the currently-visible note order and a drag from `activeId` onto
- * `overId`, computes where the dragged note should land: it adopts the
- * parent of whichever note ends up directly above it (or, if dropped at
- * the very top, the parent of the note now directly below it), and is
- * positioned among that parent's existing children accordingly.
+ * `overId`, computes where the dragged note should land.
+ *
+ * By default it adopts the parent of whichever note ends up directly above
+ * it (or, if dropped at the very top, the parent of the note now directly
+ * below it), and is positioned among that parent's existing children
+ * accordingly. A sideways drag past `INDENT_THRESHOLD_PX` overrides this:
+ * dragging right nests the note as the last child of the note now above it;
+ * dragging left promotes it one or more levels up its former parent chain,
+ * landing right after the ancestor branch it came from (never at the end
+ * of the list).
  */
 export function computeDragMove(
   notes: NoteMeta[],
   visible: VisibleTreeNode[],
   activeId: string,
   overId: string,
+  horizontalDelta = 0,
 ): DragMoveTarget | null {
   const oldIndex = visible.findIndex((v) => v.id === activeId);
   const newIndex = visible.findIndex((v) => v.id === overId);
-  if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return null;
+  if (oldIndex === -1 || newIndex === -1) return null;
 
-  const reordered = arrayMove(visible, oldIndex, newIndex);
-  const movedPos = reordered.findIndex((v) => v.id === activeId);
-  const prev = reordered[movedPos - 1] ?? null;
-  const next = reordered[movedPos + 1] ?? null;
-  const newParentId = prev ? prev.parentId : (next?.parentId ?? null);
+  const steps = Math.round(horizontalDelta / INDENT_THRESHOLD_PX);
+
+  // A sideways-only nudge (still hovering its own row) doesn't reorder —
+  // it just tries to indent/outdent the note where it already sits.
+  const isPureHorizontalNudge = oldIndex === newIndex;
+  if (isPureHorizontalNudge && steps === 0) return null;
+
+  let prev: VisibleTreeNode | null;
+  let naturalParentId: string | null;
+
+  if (isPureHorizontalNudge) {
+    prev = visible[oldIndex - 1] ?? null;
+    naturalParentId = notes.find((n) => n.id === activeId)?.parentId ?? null;
+  } else {
+    const reordered = arrayMove(visible, oldIndex, newIndex);
+    const movedPos = reordered.findIndex((v) => v.id === activeId);
+    prev = reordered[movedPos - 1] ?? null;
+    const next = reordered[movedPos + 1] ?? null;
+    naturalParentId = prev ? prev.parentId : (next?.parentId ?? null);
+  }
+
+  if (steps > 0 && prev && !isSelfOrDescendant(notes, activeId, prev.id)) {
+    const siblings = notes
+      .filter((n) => n.parentId === prev.id && n.id !== activeId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    return {
+      newParentId: prev.id,
+      beforeId: siblings[siblings.length - 1]?.id ?? null,
+      afterId: null,
+    };
+  }
+
+  if (steps < 0) {
+    const byId = new Map(notes.map((n) => [n.id, n]));
+    const levels: (string | null)[] = [naturalParentId];
+    let current = naturalParentId;
+    while (current !== null) {
+      current = byId.get(current)?.parentId ?? null;
+      levels.push(current);
+    }
+    const outdentLevels = Math.min(-steps, levels.length - 1);
+    if (outdentLevels > 0) {
+      const newParentId = levels[outdentLevels];
+      const branchId = levels[outdentLevels - 1];
+      const siblings = notes
+        .filter((n) => n.parentId === newParentId && n.id !== activeId)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+      const branchIndex = siblings.findIndex((s) => s.id === branchId);
+      return {
+        newParentId,
+        beforeId: branchId,
+        afterId: branchIndex >= 0 ? (siblings[branchIndex + 1]?.id ?? null) : null,
+      };
+    }
+  }
+
+  // No vertical move happened and the horizontal nudge didn't clear an
+  // indent/outdent threshold (or hit a boundary) — nothing to do.
+  if (isPureHorizontalNudge) return null;
 
   const siblings = notes
-    .filter((n) => n.parentId === newParentId && n.id !== activeId)
+    .filter((n) => n.parentId === naturalParentId && n.id !== activeId)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  if (!prev) return { newParentId, beforeId: null, afterId: siblings[0]?.id ?? null };
+  if (!prev) {
+    return { newParentId: naturalParentId, beforeId: null, afterId: siblings[0]?.id ?? null };
+  }
 
   const prevIndex = siblings.findIndex((s) => s.id === prev.id);
   return {
-    newParentId,
+    newParentId: naturalParentId,
     beforeId: prev.id,
     afterId: siblings[prevIndex + 1]?.id ?? null,
   };

@@ -138,4 +138,75 @@ describe("computeDragMove", () => {
     expect(computeDragMove(notes, visible, "a", "a")).toBeNull();
     expect(computeDragMove(notes, visible, "a", "missing")).toBeNull();
   });
+
+  it("nests under the note now directly above when dragged right past the threshold", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "b", sortOrder: 2048 }),
+      note({ id: "c", sortOrder: 3072 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "a", "c", 30)).toEqual({
+      newParentId: "c",
+      beforeId: null,
+      afterId: null,
+    });
+  });
+
+  it("promotes to the parent's level when dragged left, landing after the former parent rather than at the end", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "a1", parentId: "a", sortOrder: 1024 }),
+      note({ id: "a2", parentId: "a", sortOrder: 2048 }),
+      note({ id: "a3", parentId: "a", sortOrder: 3072 }),
+      note({ id: "b", sortOrder: 2048 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "a3", "a2", -30)).toEqual({
+      newParentId: null,
+      beforeId: "a",
+      afterId: "b",
+    });
+  });
+
+  it("indents in place when nudged right without crossing into another row (over === active)", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "b", sortOrder: 2048 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "b", "b", 30)).toEqual({
+      newParentId: "a",
+      beforeId: null,
+      afterId: null,
+    });
+  });
+
+  it("outdents in place when nudged left without crossing into another row (over === active)", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "a1", parentId: "a", sortOrder: 1024 }),
+      note({ id: "b", sortOrder: 2048 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "a1", "a1", -30)).toEqual({
+      newParentId: null,
+      beforeId: "a",
+      afterId: "b",
+    });
+  });
+
+  it("is a no-op when nudged sideways without crossing rows and below the threshold", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "b", sortOrder: 2048 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "b", "b", 5)).toBeNull();
+  });
 });
