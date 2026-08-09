@@ -10,24 +10,28 @@ import {
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDocumentStore } from "../../document/documentStore";
 import { usePrefsStore } from "../../stores/usePrefsStore";
+import { docKey } from "../../document/documentSource";
 import { buildTree, computeDragMove, flattenVisibleTree } from "../../document/treeUtils";
 import { NoteTreeItem } from "./NoteTreeItem";
 import { TreeToolbar } from "./TreeToolbar";
+import { RecentlyDeleted } from "./RecentlyDeleted";
 
 export function TreeView() {
   const notes = useDocumentStore((s) => s.doc?.notes);
-  const filePath = useDocumentStore((s) => s.filePath);
+  const source = useDocumentStore((s) => s.source);
+  const key = source ? docKey(source) : null;
   const expandState = usePrefsStore((s) =>
-    filePath ? s.prefs.treeExpandState[filePath] : undefined,
+    key ? s.prefs.treeExpandState[key] : undefined,
   );
-  const tree = useMemo(() => buildTree(notes ?? []), [notes]);
+  const liveNotes = useMemo(() => (notes ?? []).filter((n) => !n.deletedAt), [notes]);
+  const tree = useMemo(() => buildTree(liveNotes), [liveNotes]);
 
   const visible = useMemo(() => {
     const isExpanded = (id: string) =>
-      filePath ? usePrefsStore.getState().isExpanded(filePath, id) : true;
+      key ? usePrefsStore.getState().isExpanded(key, id) : true;
     return flattenVisibleTree(tree, isExpanded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tree, expandState, filePath]);
+  }, [tree, expandState, key]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -39,7 +43,7 @@ export function TreeView() {
     const currentNotes = useDocumentStore.getState().doc?.notes;
     if (!currentNotes) return;
     const move = computeDragMove(
-      currentNotes,
+      currentNotes.filter((n) => !n.deletedAt),
       visible,
       String(active.id),
       String(over.id),
@@ -75,6 +79,7 @@ export function TreeView() {
           </DndContext>
         )}
       </div>
+      <RecentlyDeleted />
     </div>
   );
 }

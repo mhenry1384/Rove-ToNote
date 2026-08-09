@@ -11,6 +11,10 @@
     "fs:allow-app-write-recursive",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
-    "fs:allow-exists"
+    "fs:allow-exists",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://accounts.google.com/*" }]
+    }
   ]
 }

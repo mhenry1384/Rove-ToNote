@@ -1,12 +1,13 @@
-import { FilePlus, FolderOpen } from "lucide-react";
+import { Cloud, FilePlus, FolderOpen } from "lucide-react";
 
 interface WelcomeScreenProps {
   onNew: () => void;
   onOpen: () => void;
+  onOpenFromDrive: () => void;
   loadError: string | null;
 }
 
-export function WelcomeScreen({ onNew, onOpen, loadError }: WelcomeScreenProps) {
+export function WelcomeScreen({ onNew, onOpen, onOpenFromDrive, loadError }: WelcomeScreenProps) {
   return (
     <div className="welcome-screen">
       <div className="welcome-screen__card">
@@ -27,6 +28,10 @@ export function WelcomeScreen({ onNew, onOpen, loadError }: WelcomeScreenProps) 
           <button type="button" className="button" onClick={onOpen}>
             <FolderOpen size={16} />
             Open Document…
+          </button>
+          <button type="button" className="button" onClick={onOpenFromDrive}>
+            <Cloud size={16} />
+            Open from Google Drive…
           </button>
         </div>
       </div>

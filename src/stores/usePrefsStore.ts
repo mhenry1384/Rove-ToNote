@@ -6,22 +6,23 @@ import {
   withNoteExpanded,
   type Prefs,
 } from "../document/prefs";
+import type { DocumentSource } from "../document/documentSource";
 
 interface PrefsState {
   prefs: Prefs;
   isLoaded: boolean;
   load: () => Promise<void>;
-  setLastOpenedFilePath: (path: string | null) => Promise<void>;
-  isExpanded: (filePath: string, noteId: string) => boolean;
+  setLastOpenedSource: (source: DocumentSource | null) => Promise<void>;
+  isExpanded: (docKey: string, noteId: string) => boolean;
   setExpanded: (
-    filePath: string,
+    docKey: string,
     noteId: string,
     expanded: boolean,
   ) => Promise<void>;
 }
 
 export const usePrefsStore = create<PrefsState>((set, get) => ({
-  prefs: { lastOpenedFilePath: null, treeExpandState: {} },
+  prefs: { lastOpenedSource: null, treeExpandState: {} },
   isLoaded: false,
 
   load: async () => {
@@ -29,17 +30,16 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
     set({ prefs, isLoaded: true });
   },
 
-  setLastOpenedFilePath: async (path) => {
-    const next = { ...get().prefs, lastOpenedFilePath: path };
+  setLastOpenedSource: async (source) => {
+    const next = { ...get().prefs, lastOpenedSource: source };
     set({ prefs: next });
     await savePrefs(next);
   },
 
-  isExpanded: (filePath, noteId) =>
-    isNoteExpanded(get().prefs, filePath, noteId),
+  isExpanded: (docKey, noteId) => isNoteExpanded(get().prefs, docKey, noteId),
 
-  setExpanded: async (filePath, noteId, expanded) => {
-    const next = withNoteExpanded(get().prefs, filePath, noteId, expanded);
+  setExpanded: async (docKey, noteId, expanded) => {
+    const next = withNoteExpanded(get().prefs, docKey, noteId, expanded);
     set({ prefs: next });
     await savePrefs(next);
   },

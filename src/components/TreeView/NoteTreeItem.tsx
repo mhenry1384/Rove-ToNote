@@ -5,8 +5,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { useDocumentStore } from "../../document/documentStore";
 import { usePrefsStore } from "../../stores/usePrefsStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
+import { docKey } from "../../document/documentSource";
 import { findPreviousSibling, type TreeNode } from "../../document/treeUtils";
-import { confirmAndDeleteNote, decryptNote, encryptNote } from "../../document/noteActions";
+import { deleteNoteWithUndo, decryptNote, encryptNote } from "../../document/noteActions";
 import { NOTE_COLORS, noteColorBg } from "../../document/noteColors";
 
 interface NoteTreeItemProps {
@@ -15,12 +16,13 @@ interface NoteTreeItemProps {
 }
 
 export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
-  const filePath = useDocumentStore((s) => s.filePath);
+  const source = useDocumentStore((s) => s.source);
+  const key = source ? docKey(source) : null;
   const notes = useDocumentStore((s) => s.doc?.notes);
   const selectedNoteId = useSelectionStore((s) => s.selectedNoteId);
   const pendingRenameId = useSelectionStore((s) => s.pendingRenameId);
   const isExpanded = usePrefsStore((s) =>
-    filePath ? s.isExpanded(filePath, node.id) : true,
+    key ? s.isExpanded(key, node.id) : true,
   );
 
   const isSelected = selectedNoteId === node.id;
@@ -73,8 +75,8 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
   }
 
   function toggleExpanded() {
-    if (!filePath) return;
-    void usePrefsStore.getState().setExpanded(filePath, node.id, !isExpanded);
+    if (!key) return;
+    void usePrefsStore.getState().setExpanded(key, node.id, !isExpanded);
   }
 
   function indent() {
@@ -83,7 +85,7 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
     const prevSiblingId = findPreviousSibling(doc.notes, node.id);
     if (prevSiblingId) {
       useDocumentStore.getState().reparentNote(node.id, prevSiblingId);
-      if (filePath) void usePrefsStore.getState().setExpanded(filePath, prevSiblingId, true);
+      if (key) void usePrefsStore.getState().setExpanded(key, prevSiblingId, true);
     }
   }
 
@@ -185,11 +187,7 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
         >
           {hasChildren && (isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
         </button>
-        <Icon
-          size={14}
-          className="tree-item__icon"
-          style={colorBg ? { color: colorBg } : undefined}
-        />
+        <Icon size={14} className="tree-item__icon" />
         {isEditing ? (
           <input
             ref={inputRef}
@@ -233,7 +231,7 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
             className="note-menu__item"
             onClick={() => {
               setIsMenuOpen(false);
-              void confirmAndDeleteNote(node.id);
+              deleteNoteWithUndo(node.id);
             }}
           >
             <Trash2 size={14} />

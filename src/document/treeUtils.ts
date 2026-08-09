@@ -188,6 +188,40 @@ export function computeDragMove(
   };
 }
 
+/** A deleted note is a "deletion root" — the top of one soft-deleted subtree —
+ * if its parent is missing/live, or was deleted in a different operation. */
+function isDeletionRoot(note: NoteMeta, byId: Map<string, NoteMeta>): boolean {
+  if (!note.deletedAt) return false;
+  const parent = note.parentId ? byId.get(note.parentId) : undefined;
+  return !parent || parent.deletedAt !== note.deletedAt;
+}
+
+/** The top-level deleted notes, i.e. one entry per delete operation, each
+ * representing an entire soft-deleted subtree that can be restored together. */
+export function getDeletionRoots(notes: NoteMeta[]): NoteMeta[] {
+  const byId = new Map(notes.map((n) => [n.id, n]));
+  return notes.filter((n) => isDeletionRoot(n, byId));
+}
+
+/** All ids in the soft-deleted subtree rooted at `rootId` — the root plus any
+ * descendants that share its exact `deletedAt` (i.e. were deleted alongside it). */
+export function collectDeletionSubtreeIds(
+  notes: NoteMeta[],
+  rootId: string,
+): Set<string> {
+  const ids = new Set<string>();
+  const root = notes.find((n) => n.id === rootId);
+  if (!root?.deletedAt) return ids;
+  const walk = (id: string) => {
+    ids.add(id);
+    for (const n of notes) {
+      if (n.parentId === id && n.deletedAt === root.deletedAt) walk(n.id);
+    }
+  };
+  walk(rootId);
+  return ids;
+}
+
 /** Returns the id of `id`'s previous sibling under the same parent, or null if it's the first child. */
 export function findPreviousSibling(
   notes: NoteMeta[],
@@ -196,7 +230,7 @@ export function findPreviousSibling(
   const note = notes.find((n) => n.id === id);
   if (!note) return null;
   const siblings = notes
-    .filter((n) => n.parentId === note.parentId)
+    .filter((n) => n.parentId === note.parentId && !n.deletedAt)
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const index = siblings.findIndex((n) => n.id === id);
   return index > 0 ? siblings[index - 1].id : null;

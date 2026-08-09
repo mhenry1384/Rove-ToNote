@@ -1,25 +1,40 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Lock, Unlock } from "lucide-react";
+import { message } from "@tauri-apps/plugin-dialog";
+import { Cloud, CloudOff, Lock, RefreshCw, Unlock } from "lucide-react";
 import "./App.css";
 import { useDocumentStore } from "./document/documentStore";
 import { usePrefsStore } from "./stores/usePrefsStore";
 import { useVaultStore } from "./stores/useVaultStore";
-import { installAppMenu, handleNew, handleOpen, handleSave } from "./menu/appMenu";
+import { useDriveStore } from "./stores/useDriveStore";
+import { displayName, docKey } from "./document/documentSource";
+import {
+  installAppMenu,
+  handleNew,
+  handleOpen,
+  handleOpenFromDrive,
+  handleSave,
+} from "./menu/appMenu";
 import { WelcomeScreen } from "./components/Welcome/WelcomeScreen";
 import { TreeView } from "./components/TreeView/TreeView";
 import { NoteEditor } from "./components/NoteEditor/NoteEditor";
 import { PasswordPrompt } from "./components/Vault/PasswordPrompt";
+import { DriveFilePicker } from "./components/Drive/DriveFilePicker";
+import { SaveToDriveModal } from "./components/Drive/SaveToDriveModal";
+import { ConflictBanner } from "./components/Drive/ConflictBanner";
+import { Toast } from "./components/Toast/Toast";
 
 let startupRan = false;
 
 function App() {
   const [isStarting, setIsStarting] = useState(true);
   const doc = useDocumentStore((s) => s.doc);
-  const filePath = useDocumentStore((s) => s.filePath);
+  const source = useDocumentStore((s) => s.source);
   const isDirty = useDocumentStore((s) => s.isDirty);
   const loadError = useDocumentStore((s) => s.loadError);
+  const driveSyncStatus = useDocumentStore((s) => s.driveSyncStatus);
   const isVaultUnlocked = useVaultStore((s) => s.isUnlocked);
+  const sourceKey = source ? docKey(source) : null;
 
   useEffect(() => {
     if (startupRan) {
@@ -31,12 +46,19 @@ function App() {
     void (async () => {
       await installAppMenu();
       await usePrefsStore.getState().load();
-      const lastPath = usePrefsStore.getState().prefs.lastOpenedFilePath;
-      if (lastPath) {
+      await useDriveStore.getState().restoreSession();
+      const lastSource = usePrefsStore.getState().prefs.lastOpenedSource;
+      if (lastSource?.kind === "local") {
         try {
-          await useDocumentStore.getState().openDocument(lastPath);
+          await useDocumentStore.getState().openDocument(lastSource.path);
         } catch {
           // File moved/corrupt/unreadable — fall back to the welcome screen.
+        }
+      } else if (lastSource?.kind === "drive" && useDriveStore.getState().isSignedIn) {
+        try {
+          await useDocumentStore.getState().openFromDrive(lastSource.fileId, lastSource.name);
+        } catch {
+          // Deleted/inaccessible/offline — fall back to the welcome screen.
         }
       }
       setIsStarting(false);
@@ -50,6 +72,13 @@ function App() {
         event.preventDefault();
         const { isDirty: dirty, save } = useDocumentStore.getState();
         if (dirty) await save();
+        if (useDocumentStore.getState().driveConflict) {
+          await message(
+            "This document has unresolved changes from Google Drive. Resolve the conflict banner before closing.",
+            { title: "ToNote", kind: "warning" },
+          );
+          return;
+        }
         await getCurrentWindow().destroy();
       });
     })();
@@ -58,7 +87,7 @@ function App() {
 
   useEffect(() => {
     useVaultStore.getState().lock();
-  }, [filePath]);
+  }, [sourceKey]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -91,21 +120,43 @@ function App() {
 
   if (!doc) {
     return (
-      <WelcomeScreen
-        onNew={() => void handleNew()}
-        onOpen={() => void handleOpen()}
-        loadError={loadError}
-      />
+      <>
+        <WelcomeScreen
+          onNew={() => void handleNew()}
+          onOpen={() => void handleOpen()}
+          onOpenFromDrive={() => void handleOpenFromDrive()}
+          loadError={loadError}
+        />
+        <DriveFilePicker />
+      </>
     );
   }
+
+  const driveStatusTitle =
+    driveSyncStatus === "conflict"
+      ? "This document changed on Google Drive — resolve the conflict below"
+      : driveSyncStatus === "checking"
+        ? "Checking Google Drive for updates…"
+        : "Synced with Google Drive";
 
   return (
     <div className="app-shell">
       <header className="app-titlebar">
         <span className="app-titlebar__file">
-          {filePath}
+          {source ? displayName(source) : ""}
           {isDirty ? " •" : ""}
         </span>
+        {source?.kind === "drive" && (
+          <button type="button" className="icon-button" disabled title={driveStatusTitle}>
+            {driveSyncStatus === "checking" ? (
+              <RefreshCw size={16} className="icon-button--spinning" />
+            ) : driveSyncStatus === "conflict" ? (
+              <CloudOff size={16} />
+            ) : (
+              <Cloud size={16} />
+            )}
+          </button>
+        )}
         {doc.vault && (
           <button
             type="button"
@@ -120,7 +171,11 @@ function App() {
           </button>
         )}
       </header>
+      <ConflictBanner />
       <PasswordPrompt />
+      <DriveFilePicker />
+      <SaveToDriveModal />
+      <Toast />
       <div className="app-body">
         <aside className="app-tree-pane">
           <TreeView />

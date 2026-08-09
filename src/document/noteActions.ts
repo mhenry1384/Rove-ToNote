@@ -1,8 +1,8 @@
-import { ask } from "@tauri-apps/plugin-dialog";
 import { useDocumentStore } from "./documentStore";
 import { parseTodoMarkdown } from "./todoMarkdown";
 import type { NoteMeta } from "./types";
 import { useSelectionStore } from "../stores/useSelectionStore";
+import { useToastStore } from "../stores/useToastStore";
 import { useVaultStore } from "../stores/useVaultStore";
 import {
   decryptString,
@@ -18,26 +18,24 @@ export function isNoteEmpty(note: NoteMeta): boolean {
   return note.content.trim() === "";
 }
 
-/** Confirms (if the note has children or content) and deletes it, clearing
- * the selection if the deleted note was selected. */
-export async function confirmAndDeleteNote(noteId: string): Promise<void> {
+/** Soft-deletes a note (and its children), clearing the selection if the
+ * deleted note was selected, and offers an "Undo" toast to restore it. Up to
+ * five deleted notes are kept around for undo before being purged for good. */
+export function deleteNoteWithUndo(noteId: string): void {
   const doc = useDocumentStore.getState().doc;
   const note = doc?.notes.find((n) => n.id === noteId);
   if (!note) return;
-  const hasChildren = doc?.notes.some((n) => n.parentId === note.id);
-  if (hasChildren || !isNoteEmpty(note)) {
-    const confirmed = await ask(
-      hasChildren
-        ? `Delete "${note.title}" and everything inside it? This can't be undone.`
-        : `Delete "${note.title}"? This can't be undone.`,
-      { title: "ToNote", kind: "warning" },
-    );
-    if (!confirmed) return;
-  }
-  useDocumentStore.getState().deleteNote(note.id);
-  if (useSelectionStore.getState().selectedNoteId === note.id) {
+  useDocumentStore.getState().deleteNote(noteId);
+  if (useSelectionStore.getState().selectedNoteId === noteId) {
     useSelectionStore.getState().select(null);
   }
+  useToastStore.getState().show(`"${note.title}" deleted`, {
+    label: "Undo",
+    onAction: () => {
+      useDocumentStore.getState().restoreNote(noteId);
+      useSelectionStore.getState().select(noteId);
+    },
+  });
 }
 
 /** Prompts for the vault password if needed (setting one up on first use),

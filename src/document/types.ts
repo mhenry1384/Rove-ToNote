@@ -13,6 +13,10 @@ export interface NoteMeta {
   updatedAt: string;
   /** Background color id (see noteColors.ts), or absent/null for the default background. */
   color?: string | null;
+  /** ISO timestamp when this note was soft-deleted, or absent/null if it's live.
+   * Descendants deleted as part of the same delete operation share this exact
+   * timestamp, which is how restore/prune know which subtree they belong to. */
+  deletedAt?: string | null;
 }
 
 export interface VaultInfo {

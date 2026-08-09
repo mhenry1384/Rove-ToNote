@@ -1,5 +1,4 @@
-/** Google Keep-style background swatches. Colors are chosen dark/saturated
- * enough that white note text stays readable regardless of system theme. */
+/** Google Keep's actual light-theme background swatches. */
 export interface NoteColor {
   id: string;
   label: string;
@@ -7,16 +6,16 @@ export interface NoteColor {
 }
 
 export const NOTE_COLORS: NoteColor[] = [
-  { id: "coral", label: "Coral", bg: "#5c2b29" },
-  { id: "peach", label: "Peach", bg: "#6b4a1e" },
-  { id: "sand", label: "Sand", bg: "#635d19" },
-  { id: "mint", label: "Mint", bg: "#345920" },
-  { id: "sage", label: "Sage", bg: "#16504b" },
-  { id: "fog", label: "Fog", bg: "#2d555e" },
-  { id: "storm", label: "Storm", bg: "#1e3a5f" },
-  { id: "dusk", label: "Dusk", bg: "#42275e" },
-  { id: "blossom", label: "Blossom", bg: "#5b2245" },
-  { id: "clay", label: "Clay", bg: "#442f19" },
+  { id: "coral", label: "Coral", bg: "#f28b82" },
+  { id: "peach", label: "Peach", bg: "#fbbc04" },
+  { id: "sand", label: "Sand", bg: "#fff475" },
+  { id: "mint", label: "Mint", bg: "#ccff90" },
+  { id: "sage", label: "Sage", bg: "#a7ffeb" },
+  { id: "fog", label: "Fog", bg: "#cbf0f8" },
+  { id: "storm", label: "Storm", bg: "#aecbfa" },
+  { id: "dusk", label: "Dusk", bg: "#d7aefb" },
+  { id: "blossom", label: "Blossom", bg: "#fdcfe8" },
+  { id: "clay", label: "Clay", bg: "#e6c9a8" },
 ];
 
 export function noteColorBg(colorId: string | null | undefined): string | null {
@@ -24,6 +23,6 @@ export function noteColorBg(colorId: string | null | undefined): string | null {
   return NOTE_COLORS.find((c) => c.id === colorId)?.bg ?? null;
 }
 
-/** Softened off-white for text on a colored background — pure #fff at full
- * opacity read as too glaring against these dark swatches. */
-export const NOTE_TEXT_COLOR = "rgba(255, 255, 255, 0.78)";
+/** Softened near-black for text on a colored background — pure black at full
+ * opacity read as too harsh against these light swatches. */
+export const NOTE_TEXT_COLOR = "rgba(0, 0, 0, 0.78)";

@@ -1,7 +1,7 @@
 import { FilePlus, ListPlus, Trash2 } from "lucide-react";
 import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
-import { confirmAndDeleteNote, isNoteEmpty } from "../../document/noteActions";
+import { deleteNoteWithUndo, isNoteEmpty } from "../../document/noteActions";
 import type { NoteType } from "../../document/types";
 
 export function TreeToolbar() {
@@ -15,6 +15,7 @@ export function TreeToolbar() {
 
     const existingBlank = doc?.notes.find(
       (n) =>
+        !n.deletedAt &&
         n.parentId === parentId &&
         n.type === type &&
         n.title === title &&
@@ -29,9 +30,9 @@ export function TreeToolbar() {
     useSelectionStore.getState().selectAndRename(note.id);
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!selectedNoteId) return;
-    await confirmAndDeleteNote(selectedNoteId);
+    deleteNoteWithUndo(selectedNoteId);
   }
 
   return (
@@ -57,7 +58,7 @@ export function TreeToolbar() {
         className="icon-button"
         title="Delete selected note"
         disabled={!selectedNoteId}
-        onClick={() => void handleDelete()}
+        onClick={handleDelete}
       >
         <Trash2 size={16} />
       </button>

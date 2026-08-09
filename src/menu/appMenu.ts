@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message, open, save } from "@tauri-apps/plugin-dialog";
 import { useDocumentStore } from "../document/documentStore";
 import { usePrefsStore } from "../stores/usePrefsStore";
+import { useDriveStore } from "../stores/useDriveStore";
 
 const FILE_FILTERS = [{ name: "ToNote Document", extensions: ["tonote"] }];
 
@@ -30,7 +31,7 @@ export async function handleNew(): Promise<void> {
   const fullPath = withExtension(path);
   try {
     await useDocumentStore.getState().newDocument(fullPath);
-    await usePrefsStore.getState().setLastOpenedFilePath(fullPath);
+    await usePrefsStore.getState().setLastOpenedSource({ kind: "local", path: fullPath });
   } catch (err) {
     await reportError("Couldn't create that file.", err);
   }
@@ -46,7 +47,7 @@ export async function handleOpen(): Promise<void> {
   if (!picked || Array.isArray(picked)) return;
   try {
     await useDocumentStore.getState().openDocument(picked);
-    await usePrefsStore.getState().setLastOpenedFilePath(picked);
+    await usePrefsStore.getState().setLastOpenedSource({ kind: "local", path: picked });
   } catch (err) {
     await reportError("Couldn't open that file.", err);
   }
@@ -61,21 +62,55 @@ export async function handleSave(): Promise<void> {
 }
 
 async function handleSaveAs(): Promise<void> {
-  const { doc, filePath } = useDocumentStore.getState();
+  const { doc, source } = useDocumentStore.getState();
   if (!doc) return;
   const path = await save({
     title: "Save ToNote Document As",
     filters: FILE_FILTERS,
-    defaultPath: filePath ?? undefined,
+    defaultPath: source?.kind === "local" ? source.path : undefined,
   });
   if (!path) return;
   const fullPath = withExtension(path);
   try {
     await useDocumentStore.getState().saveAs(fullPath);
-    await usePrefsStore.getState().setLastOpenedFilePath(fullPath);
+    await usePrefsStore.getState().setLastOpenedSource({ kind: "local", path: fullPath });
   } catch (err) {
     await reportError("Couldn't save the file.", err);
   }
+}
+
+/** Signs in if needed, then opens the "pick a Drive file" modal — the modal
+ * itself (DriveFilePicker) calls openFromDrive + setLastOpenedSource once
+ * the user picks a row. */
+export async function handleOpenFromDrive(): Promise<void> {
+  await flushIfDirty();
+  try {
+    if (!useDriveStore.getState().isSignedIn) {
+      await useDriveStore.getState().signIn();
+    }
+    await useDriveStore.getState().openPicker();
+  } catch (err) {
+    await reportError("Couldn't connect to Google Drive.", err);
+  }
+}
+
+/** Signs in if needed, then opens the "name this copy" modal — the modal
+ * itself (SaveToDriveModal) calls saveCopyToDrive + setLastOpenedSource. */
+export async function handleSaveCopyToDrive(): Promise<void> {
+  const { doc } = useDocumentStore.getState();
+  if (!doc) return;
+  try {
+    if (!useDriveStore.getState().isSignedIn) {
+      await useDriveStore.getState().signIn();
+    }
+    useDriveStore.getState().openSaveCopyPrompt();
+  } catch (err) {
+    await reportError("Couldn't connect to Google Drive.", err);
+  }
+}
+
+async function handleDriveSignOut(): Promise<void> {
+  await useDriveStore.getState().signOut();
 }
 
 async function handleExit(): Promise<void> {
@@ -84,12 +119,28 @@ async function handleExit(): Promise<void> {
 }
 
 let saveMenuItem: MenuItem | null = null;
+let driveAuthMenuItem: MenuItem | null = null;
 
 /** Keeps the Save menu item's enabled state in sync with the document's dirty flag. */
 function watchDirtyState(): void {
   useDocumentStore.subscribe((state, prevState) => {
     if (state.isDirty !== prevState.isDirty && saveMenuItem) {
       void saveMenuItem.setEnabled(state.isDirty);
+    }
+  });
+}
+
+/** Keeps the Drive sign-in/out menu item's label in sync with auth state. */
+function watchDriveAuthState(): void {
+  useDriveStore.subscribe((state, prevState) => {
+    if (
+      (state.isSignedIn !== prevState.isSignedIn || state.accountEmail !== prevState.accountEmail) &&
+      driveAuthMenuItem
+    ) {
+      const label = state.isSignedIn
+        ? `Sign Out of Google Drive${state.accountEmail ? ` (${state.accountEmail})` : ""}`
+        : "Sign In to Google Drive…";
+      void driveAuthMenuItem.setText(label);
     }
   });
 }
@@ -106,6 +157,15 @@ export async function installAppMenu(): Promise<void> {
     accelerator: "CmdOrCtrl+S",
     enabled: useDocumentStore.getState().isDirty,
     action: () => void handleSave(),
+  });
+
+  driveAuthMenuItem = await MenuItem.new({
+    id: "drive-auth",
+    text: useDriveStore.getState().isSignedIn ? "Sign Out of Google Drive" : "Sign In to Google Drive…",
+    action: () => {
+      if (useDriveStore.getState().isSignedIn) void handleDriveSignOut();
+      else void useDriveStore.getState().signIn();
+    },
   });
 
   const fileMenu = await Submenu.new({
@@ -132,6 +192,18 @@ export async function installAppMenu(): Promise<void> {
       }),
       await PredefinedMenuItem.new({ item: "Separator" }),
       await MenuItem.new({
+        id: "file-open-drive",
+        text: "Open from Google Drive…",
+        action: () => void handleOpenFromDrive(),
+      }),
+      await MenuItem.new({
+        id: "file-save-copy-drive",
+        text: "Save a Copy to Google Drive…",
+        action: () => void handleSaveCopyToDrive(),
+      }),
+      driveAuthMenuItem,
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      await MenuItem.new({
         id: "file-exit",
         text: "Exit",
         action: () => void handleExit(),
@@ -143,4 +215,5 @@ export async function installAppMenu(): Promise<void> {
   await menu.setAsAppMenu();
 
   watchDirtyState();
+  watchDriveAuthState();
 }

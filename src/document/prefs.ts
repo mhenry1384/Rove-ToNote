@@ -1,5 +1,6 @@
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import type { DocumentSource } from "./documentSource";
 
 /**
  * Small local-only app state, kept separate from the portable `.tonote`
@@ -7,14 +8,14 @@ import { exists, mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-f
  * the shared file with pure view state.
  */
 export interface Prefs {
-  lastOpenedFilePath: string | null;
+  lastOpenedSource: DocumentSource | null;
   windowBounds?: { width: number; height: number; x: number; y: number };
-  /** filePath -> noteId -> expanded */
+  /** docKey(source) -> noteId -> expanded */
   treeExpandState: Record<string, Record<string, boolean>>;
 }
 
 function defaultPrefs(): Prefs {
-  return { lastOpenedFilePath: null, treeExpandState: {} };
+  return { lastOpenedSource: null, treeExpandState: {} };
 }
 
 let prefsFilePathPromise: Promise<string> | null = null;
@@ -39,8 +40,14 @@ export async function loadPrefs(): Promise<Prefs> {
   }
   try {
     const raw = await readTextFile(path);
-    const parsed = JSON.parse(raw) as Partial<Prefs>;
-    return { ...defaultPrefs(), ...parsed };
+    const parsed = JSON.parse(raw) as Partial<Prefs> & { lastOpenedFilePath?: string | null };
+    const merged = { ...defaultPrefs(), ...parsed };
+    // Migrate the pre-Drive-support shape: a bare local path with no
+    // lastOpenedSource yet.
+    if (!merged.lastOpenedSource && typeof parsed.lastOpenedFilePath === "string") {
+      merged.lastOpenedSource = { kind: "local", path: parsed.lastOpenedFilePath };
+    }
+    return merged;
   } catch {
     // Corrupt local prefs are not worth failing the app over — start fresh.
     return defaultPrefs();
@@ -54,15 +61,15 @@ export async function savePrefs(prefs: Prefs): Promise<void> {
 
 export function isNoteExpanded(
   prefs: Prefs,
-  filePath: string,
+  docKey: string,
   noteId: string,
 ): boolean {
-  return prefs.treeExpandState[filePath]?.[noteId] ?? true;
+  return prefs.treeExpandState[docKey]?.[noteId] ?? true;
 }
 
 export function withNoteExpanded(
   prefs: Prefs,
-  filePath: string,
+  docKey: string,
   noteId: string,
   expanded: boolean,
 ): Prefs {
@@ -70,8 +77,8 @@ export function withNoteExpanded(
     ...prefs,
     treeExpandState: {
       ...prefs.treeExpandState,
-      [filePath]: {
-        ...prefs.treeExpandState[filePath],
+      [docKey]: {
+        ...prefs.treeExpandState[docKey],
         [noteId]: expanded,
       },
     },

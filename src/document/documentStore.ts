@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { readDocumentFile, writeDocumentFile } from "./fileIO";
 import { appendSortOrder, betweenSortOrder } from "./sortOrder";
+import { collectDeletionSubtreeIds, getDeletionRoots } from "./treeUtils";
 import { createEmptyTodoDoc, serializeTodoMarkdown } from "./todoMarkdown";
+import { createDriveDocument, readDriveDocument, writeDriveDocument } from "./drive/driveFileIO";
+import { startPolling } from "./drive/polling";
+import type { DriveFileMetadata } from "./drive/driveApi";
+import type { DocumentSource } from "./documentSource";
 import {
   createEmptyDocument,
   type NoteMeta,
@@ -11,18 +16,32 @@ import {
 } from "./types";
 
 const AUTOSAVE_DELAY_MS = 30_000;
+/** How many soft-deleted subtrees to keep around for undo before permanently purging the oldest. */
+const MAX_DELETED_ROOTS = 5;
+
+type DriveSyncStatus = "idle" | "checking" | "conflict";
+
+interface DriveConflict {
+  remoteModifiedTime: string;
+}
 
 interface DocumentState {
-  filePath: string | null;
+  source: DocumentSource | null;
   doc: ToNoteDocument | null;
   isDirty: boolean;
   isSaving: boolean;
   loadError: string | null;
 
+  driveSyncStatus: DriveSyncStatus;
+  driveConflict: DriveConflict | null;
+
   newDocument: (path: string) => Promise<void>;
   openDocument: (path: string) => Promise<void>;
+  openFromDrive: (fileId: string, name: string) => Promise<void>;
+  saveCopyToDrive: (name: string) => Promise<void>;
   save: () => Promise<void>;
   saveAs: (path: string) => Promise<void>;
+  resolveDriveConflict: (choice: "keep-local" | "discard-local") => Promise<void>;
   closeDocument: () => void;
 
   createNote: (
@@ -31,6 +50,7 @@ interface DocumentState {
     type: NoteType,
   ) => NoteMeta;
   deleteNote: (id: string) => void;
+  restoreNote: (id: string) => void;
   renameNote: (id: string, title: string) => void;
   reparentNote: (id: string, newParentId: string | null) => void;
   moveWithinSiblings: (
@@ -52,6 +72,7 @@ interface DocumentState {
 }
 
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+let drivePollStop: (() => void) | null = null;
 
 function clearAutosaveTimer() {
   if (autosaveTimer) {
@@ -60,8 +81,28 @@ function clearAutosaveTimer() {
   }
 }
 
+function stopDrivePolling() {
+  drivePollStop?.();
+  drivePollStop = null;
+}
+
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+/** Permanently drops the oldest soft-deleted subtrees once more than
+ * MAX_DELETED_ROOTS are being kept around for undo. */
+function pruneOldDeletions(notes: NoteMeta[]): NoteMeta[] {
+  const roots = getDeletionRoots(notes).sort((a, b) =>
+    (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
+  );
+  const excess = roots.slice(MAX_DELETED_ROOTS);
+  if (excess.length === 0) return notes;
+  const purgeIds = new Set<string>();
+  for (const root of excess) {
+    for (const id of collectDeletionSubtreeIds(notes, root.id)) purgeIds.add(id);
+  }
+  return notes.filter((n) => !purgeIds.has(n.id));
 }
 
 export const useDocumentStore = create<DocumentState>((set, get) => {
@@ -80,25 +121,81 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
     armAutosave();
   }
 
+  function startDrivePollingFor(fileId: string) {
+    stopDrivePolling();
+    drivePollStop = startPolling(fileId, (meta: DriveFileMetadata) => {
+      void handleDrivePollTick(fileId, meta);
+    });
+  }
+
+  async function handleDrivePollTick(fileId: string, meta: DriveFileMetadata) {
+    const { source, isDirty } = get();
+    // Stale callback guard: the doc may have been closed/switched since this
+    // poll fired.
+    if (!source || source.kind !== "drive" || source.fileId !== fileId) return;
+    if (meta.headRevisionId === source.revisionId) return;
+
+    if (isDirty) {
+      set({
+        driveSyncStatus: "conflict",
+        driveConflict: { remoteModifiedTime: meta.modifiedTime },
+      });
+      return;
+    }
+
+    set({ driveSyncStatus: "checking" });
+    try {
+      const { doc: freshDoc, revisionId } = await readDriveDocument(fileId);
+      const current = get().source;
+      if (!current || current.kind !== "drive" || current.fileId !== fileId) return;
+      set({
+        doc: freshDoc,
+        source: { ...current, revisionId },
+        driveSyncStatus: "idle",
+      });
+    } catch {
+      set({ driveSyncStatus: "idle" });
+    }
+  }
+
   return {
-    filePath: null,
+    source: null,
     doc: null,
     isDirty: false,
     isSaving: false,
     loadError: null,
 
+    driveSyncStatus: "idle",
+    driveConflict: null,
+
     newDocument: async (path) => {
       clearAutosaveTimer();
+      stopDrivePolling();
       const doc = createEmptyDocument();
-      set({ filePath: path, doc, isDirty: false, loadError: null });
+      set({
+        source: { kind: "local", path },
+        doc,
+        isDirty: false,
+        loadError: null,
+        driveSyncStatus: "idle",
+        driveConflict: null,
+      });
       await writeDocumentFile(path, doc);
     },
 
     openDocument: async (path) => {
       clearAutosaveTimer();
+      stopDrivePolling();
       try {
         const doc = await readDocumentFile(path);
-        set({ filePath: path, doc, isDirty: false, loadError: null });
+        set({
+          source: { kind: "local", path },
+          doc,
+          isDirty: false,
+          loadError: null,
+          driveSyncStatus: "idle",
+          driveConflict: null,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         set({ loadError: message });
@@ -106,13 +203,60 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
       }
     },
 
+    openFromDrive: async (fileId, name) => {
+      clearAutosaveTimer();
+      stopDrivePolling();
+      try {
+        const { doc, revisionId } = await readDriveDocument(fileId);
+        set({
+          source: { kind: "drive", fileId, name, revisionId },
+          doc,
+          isDirty: false,
+          loadError: null,
+          driveSyncStatus: "idle",
+          driveConflict: null,
+        });
+        startDrivePollingFor(fileId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        set({ loadError: message });
+        throw err;
+      }
+    },
+
+    saveCopyToDrive: async (name) => {
+      const { doc } = get();
+      if (!doc) throw new Error("No document open");
+      clearAutosaveTimer();
+      stopDrivePolling();
+      set({ isSaving: true });
+      try {
+        const { fileId, revisionId } = await createDriveDocument(name, doc);
+        set({
+          source: { kind: "drive", fileId, name, revisionId },
+          isDirty: false,
+          driveSyncStatus: "idle",
+          driveConflict: null,
+        });
+        startDrivePollingFor(fileId);
+      } finally {
+        set({ isSaving: false });
+      }
+    },
+
     save: async () => {
-      const { doc, filePath, isDirty } = get();
-      if (!doc || !filePath || !isDirty) return;
+      const { doc, source, isDirty, driveConflict } = get();
+      // Never let autosave silently resolve a pending conflict for the user.
+      if (!doc || !source || !isDirty || driveConflict) return;
       clearAutosaveTimer();
       set({ isSaving: true });
       try {
-        await writeDocumentFile(filePath, doc);
+        if (source.kind === "local") {
+          await writeDocumentFile(source.path, doc);
+        } else {
+          const { revisionId } = await writeDriveDocument(source.fileId, doc);
+          set({ source: { ...source, revisionId } });
+        }
         set({ isDirty: false });
       } finally {
         set({ isSaving: false });
@@ -123,18 +267,51 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
       const { doc } = get();
       if (!doc) return;
       clearAutosaveTimer();
+      stopDrivePolling();
       set({ isSaving: true });
       try {
         await writeDocumentFile(path, doc);
-        set({ filePath: path, isDirty: false });
+        set({
+          source: { kind: "local", path },
+          isDirty: false,
+          driveSyncStatus: "idle",
+          driveConflict: null,
+        });
       } finally {
         set({ isSaving: false });
       }
     },
 
+    resolveDriveConflict: async (choice) => {
+      const { source } = get();
+      if (!source || source.kind !== "drive") return;
+      if (choice === "keep-local") {
+        set({ driveConflict: null, driveSyncStatus: "idle" });
+        await get().save();
+      } else {
+        clearAutosaveTimer();
+        const { doc, revisionId } = await readDriveDocument(source.fileId);
+        set({
+          doc,
+          source: { ...source, revisionId },
+          isDirty: false,
+          driveConflict: null,
+          driveSyncStatus: "idle",
+        });
+      }
+    },
+
     closeDocument: () => {
       clearAutosaveTimer();
-      set({ filePath: null, doc: null, isDirty: false, loadError: null });
+      stopDrivePolling();
+      set({
+        source: null,
+        doc: null,
+        isDirty: false,
+        loadError: null,
+        driveSyncStatus: "idle",
+        driveConflict: null,
+      });
     },
 
     createNote: (parentId, title, type) => {
@@ -162,17 +339,32 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
 
     deleteNote: (id) => {
       mutate((doc) => {
-        const idsToRemove = new Set<string>();
+        const timestamp = nowIso();
+        const idsToMark = new Set<string>();
         const collect = (targetId: string) => {
-          idsToRemove.add(targetId);
+          idsToMark.add(targetId);
           for (const n of doc.notes) {
-            if (n.parentId === targetId) collect(n.id);
+            // Leave already-deleted descendants alone — they belong to a
+            // separate (earlier) delete operation with their own timestamp.
+            if (n.parentId === targetId && !n.deletedAt) collect(n.id);
           }
         };
         collect(id);
+        const notes = doc.notes.map((n) =>
+          idsToMark.has(n.id) ? { ...n, deletedAt: timestamp } : n,
+        );
+        return { ...doc, notes: pruneOldDeletions(notes) };
+      });
+    },
+
+    restoreNote: (id) => {
+      mutate((doc) => {
+        const ids = collectDeletionSubtreeIds(doc.notes, id);
         return {
           ...doc,
-          notes: doc.notes.filter((n) => !idsToRemove.has(n.id)),
+          notes: doc.notes.map((n) =>
+            ids.has(n.id) ? { ...n, deletedAt: null } : n,
+          ),
         };
       });
     },

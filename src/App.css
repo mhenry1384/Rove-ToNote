@@ -9,6 +9,8 @@
   --text-muted: #6b6b72;
   --accent: #3b5fe0;
   --danger: #c0392b;
+  --warning: #8a5a00;
+  --warning-bg: #fdf0d5;
   font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -22,6 +24,8 @@
     --text: #ececee;
     --text-muted: #9a9aa2;
     --accent: #7b95f2;
+    --warning: #e0b04a;
+    --warning-bg: #3a2f12;
   }
 }
 
@@ -449,6 +453,114 @@ body {
   border-color: var(--accent);
 }
 
+/* Recently deleted */
+
+.tree-view__deleted {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+
+.tree-view__deleted-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tree-view__deleted-header:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.tree-view__deleted-list {
+  max-height: 160px;
+  overflow-y: auto;
+  padding-bottom: 4px;
+}
+
+.tree-view__deleted-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 26px;
+}
+
+.tree-view__deleted-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.tree-view__deleted-time {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Toast */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  font-size: 0.9rem;
+}
+
+.toast__action {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toast__action:hover {
+  background: var(--bg-hover);
+}
+
+.toast__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.toast__close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
 .tree-item__rename-input {
   flex: 1;
   font-size: 0.9rem;
@@ -512,29 +624,29 @@ body {
 }
 
 .note-editor--colored .note-editor__textarea {
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(0, 0, 0, 0.78);
 }
 
 .note-editor--colored .note-editor__textarea::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .note-editor--colored .markdown-editor .milkdown {
   --crepe-color-background: transparent;
-  --crepe-color-on-background: rgba(255, 255, 255, 0.78);
+  --crepe-color-on-background: rgba(0, 0, 0, 0.78);
   --crepe-color-surface: transparent;
-  --crepe-color-surface-low: rgba(255, 255, 255, 0.08);
-  --crepe-color-on-surface: rgba(255, 255, 255, 0.78);
-  --crepe-color-on-surface-variant: rgba(255, 255, 255, 0.6);
-  --crepe-color-outline: rgba(255, 255, 255, 0.35);
-  --crepe-color-primary: rgba(255, 255, 255, 0.85);
-  --crepe-color-secondary: rgba(255, 255, 255, 0.2);
-  --crepe-color-on-secondary: rgba(255, 255, 255, 0.85);
+  --crepe-color-surface-low: rgba(0, 0, 0, 0.06);
+  --crepe-color-on-surface: rgba(0, 0, 0, 0.78);
+  --crepe-color-on-surface-variant: rgba(0, 0, 0, 0.55);
+  --crepe-color-outline: rgba(0, 0, 0, 0.3);
+  --crepe-color-primary: rgba(0, 0, 0, 0.75);
+  --crepe-color-secondary: rgba(0, 0, 0, 0.12);
+  --crepe-color-on-secondary: rgba(0, 0, 0, 0.8);
   --crepe-color-inverse: #2a2a2a;
   --crepe-color-on-inverse: rgba(255, 255, 255, 0.85);
-  --crepe-color-hover: rgba(255, 255, 255, 0.1);
-  --crepe-color-selected: rgba(255, 255, 255, 0.18);
-  --crepe-color-inline-area: rgba(255, 255, 255, 0.1);
+  --crepe-color-hover: rgba(0, 0, 0, 0.06);
+  --crepe-color-selected: rgba(0, 0, 0, 0.1);
+  --crepe-color-inline-area: rgba(0, 0, 0, 0.06);
 }
 
 .markdown-editor {
@@ -840,21 +952,106 @@ body {
 
 .note-editor--colored .todo-item__text,
 .note-editor--colored .todo-editor__empty {
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(0, 0, 0, 0.78);
 }
 
 .note-editor--colored .todo-item--checked .todo-item__text {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .note-editor--colored .todo-item {
-  border-bottom-color: rgba(255, 255, 255, 0.15);
+  border-bottom-color: rgba(0, 0, 0, 0.15);
 }
 
 .note-editor--colored .todo-editor__sort-toggle,
 .note-editor--colored .todo-editor__add-input,
 .note-editor--colored .todo-item-notes__textarea {
-  border-color: rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.85);
+}
+
+/* Google Drive conflict banner */
+
+.conflict-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-bottom: 1px solid var(--border);
+}
+
+.conflict-banner__icon {
+  flex-shrink: 0;
+}
+
+.conflict-banner__message {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.conflict-banner__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Google Drive file picker */
+
+.drive-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 4px 0;
+}
+
+.drive-picker__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.drive-picker__item:hover {
+  background: var(--bg-hover);
+}
+
+.drive-picker__item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drive-picker__item-time {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Titlebar Drive status icon */
+
+.icon-button--spinning {
+  animation: icon-spin 1.2s linear infinite;
+}
+
+@keyframes icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
