@@ -13,6 +13,12 @@ export interface NoteMeta {
   updatedAt: string;
   /** Background color id (see noteColors.ts), or absent/null for the default background. */
   color?: string | null;
+  /** Background image URL, shown instead of `color` when set. Only the URL is
+   * stored in the document — never the image itself. */
+  backgroundImageUrl?: string | null;
+  /** Background image opacity from 0 to 1. Falls back to DEFAULT_BACKGROUND_IMAGE_OPACITY
+   * when a backgroundImageUrl is set but this is absent. */
+  backgroundImageOpacity?: number | null;
   /** ISO timestamp when this note was soft-deleted, or absent/null if it's live.
    * Descendants deleted as part of the same delete operation share this exact
    * timestamp, which is how restore/prune know which subtree they belong to. */

@@ -26,3 +26,6 @@ export function noteColorBg(colorId: string | null | undefined): string | null {
 /** Softened near-black for text on a colored background — pure black at full
  * opacity read as too harsh against these light swatches. */
 export const NOTE_TEXT_COLOR = "rgba(0, 0, 0, 0.78)";
+
+/** Default opacity for a note's background image when none is set explicitly. */
+export const DEFAULT_BACKGROUND_IMAGE_OPACITY = 0.5;

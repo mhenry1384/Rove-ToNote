@@ -5,7 +5,7 @@ import { useSelectionStore } from "../../stores/useSelectionStore";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { TodoEditor } from "./TodoEditor";
-import { noteColorBg, NOTE_TEXT_COLOR } from "../../document/noteColors";
+import { noteColorBg, DEFAULT_BACKGROUND_IMAGE_OPACITY, NOTE_TEXT_COLOR } from "../../document/noteColors";
 import {
   decryptString,
   encryptString,
@@ -60,11 +60,19 @@ export function NoteEditor() {
   const colorBg = noteColorBg(note.color);
   const wrapperStyle = colorBg ? { background: colorBg, color: NOTE_TEXT_COLOR } : undefined;
   const wrapperClass = `note-editor${colorBg ? " note-editor--colored" : ""}`;
+  const bgImageStyle: React.CSSProperties | undefined = note.backgroundImageUrl
+    ? {
+        backgroundImage: `url("${note.backgroundImageUrl.replace(/"/g, "%22")}")`,
+        opacity: note.backgroundImageOpacity ?? DEFAULT_BACKGROUND_IMAGE_OPACITY,
+      }
+    : undefined;
+  const bgImage = bgImageStyle && <div className="note-editor__bg-image" style={bgImageStyle} />;
 
   if (note.isEncrypted) {
     if (!isUnlocked) {
       return (
         <div className={`${wrapperClass} note-editor--locked`} style={wrapperStyle}>
+          {bgImage}
           <Lock size={28} />
           <p>This note is encrypted.</p>
           <button
@@ -80,13 +88,18 @@ export function NoteEditor() {
     if (decryptFailed) {
       return (
         <div className={`${wrapperClass} note-editor--locked`} style={wrapperStyle}>
+          {bgImage}
           <Lock size={28} />
           <p>Couldn't decrypt this note — the vault password may not match.</p>
         </div>
       );
     }
     if (decrypted === null) {
-      return <div className={`${wrapperClass} note-editor--locked`} style={wrapperStyle} />;
+      return (
+        <div className={`${wrapperClass} note-editor--locked`} style={wrapperStyle}>
+          {bgImage}
+        </div>
+      );
     }
   }
 
@@ -106,6 +119,7 @@ export function NoteEditor() {
 
   return (
     <div className={wrapperClass} key={note.id} style={wrapperStyle}>
+      {bgImage}
       <h2 className="note-editor__title">
         {note.title}
         {note.isEncrypted && <Lock size={14} className="note-editor__lock" />}

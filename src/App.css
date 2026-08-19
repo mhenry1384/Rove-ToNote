@@ -453,6 +453,37 @@ body {
   border-color: var(--accent);
 }
 
+.note-menu__image-input {
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.note-menu__image-opacity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 2px;
+}
+
+.note-menu__image-opacity input[type="range"] {
+  flex: 1;
+}
+
+.note-menu__image-opacity .note-menu__item {
+  width: auto;
+  padding: 4px 6px;
+  color: var(--danger);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
 /* Recently deleted */
 
 .tree-view__deleted {
@@ -574,10 +605,21 @@ body {
 /* Note editor */
 
 .note-editor {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
   padding: 16px 24px;
+}
+
+.note-editor__bg-image {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
 }
 
 .note-editor--empty {
@@ -703,6 +745,19 @@ body {
 
 .markdown-editor .milkdown .ProseMirror h6 {
   font-size: 0.9em;
+}
+
+/* Crepe's default caret/selection colors (--crepe-color-outline,
+   --crepe-color-selected) are faint grays that nearly disappear on white
+   and are turned down further on colored notes, so override both directly
+   with the app's accent color instead of trying to retune those tokens
+   per note-color variant. */
+.markdown-editor .milkdown .ProseMirror-focused {
+  --prosemirror-virtual-cursor-color: var(--accent);
+}
+
+.markdown-editor .milkdown .ProseMirror *::selection {
+  background: color-mix(in srgb, var(--accent), transparent 65%);
 }
 
 @media (prefers-color-scheme: dark) {

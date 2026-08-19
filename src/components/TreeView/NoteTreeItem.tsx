@@ -8,7 +8,7 @@ import { useSelectionStore } from "../../stores/useSelectionStore";
 import { docKey } from "../../document/documentSource";
 import { findPreviousSibling, type TreeNode } from "../../document/treeUtils";
 import { deleteNoteWithUndo, decryptNote, encryptNote } from "../../document/noteActions";
-import { NOTE_COLORS, noteColorBg } from "../../document/noteColors";
+import { NOTE_COLORS, noteColorBg, DEFAULT_BACKGROUND_IMAGE_OPACITY } from "../../document/noteColors";
 
 interface NoteTreeItemProps {
   node: TreeNode;
@@ -32,6 +32,7 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
   const [draftTitle, setDraftTitle] = useState(node.title);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [imageUrlDraft, setImageUrlDraft] = useState(node.backgroundImageUrl ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -114,6 +115,10 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
   }
 
   useEffect(() => {
+    if (isMenuOpen) setImageUrlDraft(node.backgroundImageUrl ?? "");
+  }, [isMenuOpen, node.backgroundImageUrl]);
+
+  useEffect(() => {
     if (!isMenuOpen) return;
     function handlePointerDown(e: MouseEvent) {
       if (menuRef.current?.contains(e.target as Node)) return;
@@ -146,6 +151,24 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
     setIsMenuOpen(false);
   }
 
+  function commitImageUrl() {
+    const trimmed = imageUrlDraft.trim();
+    if (trimmed === (node.backgroundImageUrl ?? "")) return;
+    useDocumentStore.getState().setNoteBackgroundImage(node.id, trimmed || null);
+  }
+
+  function handleOpacityChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!node.backgroundImageUrl) return;
+    useDocumentStore
+      .getState()
+      .setNoteBackgroundImage(node.id, node.backgroundImageUrl, Number(e.target.value) / 100);
+  }
+
+  function handleRemoveImage() {
+    setImageUrlDraft("");
+    useDocumentStore.getState().setNoteBackgroundImage(node.id, null);
+  }
+
   function handleToggleEncryption() {
     setIsMenuOpen(false);
     if (node.isEncrypted) void decryptNote(node.id);
@@ -170,10 +193,10 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
         }}
         onKeyDown={handleKeyDown}
       >
-        {colorBg && (
+        {(colorBg || node.backgroundImageUrl) && (
           <div
             className="tree-item__color-stripe"
-            style={{ width: 4 + depth * 14, background: colorBg }}
+            style={{ width: 4 + depth * 14, background: colorBg ?? "var(--accent)" }}
           />
         )}
         <button
@@ -292,6 +315,36 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
               />
             ))}
           </div>
+          <div className="note-menu__divider" />
+          <div className="note-menu__label">Background image</div>
+          <input
+            type="url"
+            className="note-menu__image-input"
+            placeholder="Image URL"
+            value={imageUrlDraft}
+            onChange={(e) => setImageUrlDraft(e.target.value)}
+            onBlur={commitImageUrl}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              else if (e.key === "Escape") setImageUrlDraft(node.backgroundImageUrl ?? "");
+            }}
+          />
+          {node.backgroundImageUrl && (
+            <div className="note-menu__image-opacity">
+              <input
+                type="range"
+                min={10}
+                max={100}
+                value={Math.round(
+                  (node.backgroundImageOpacity ?? DEFAULT_BACKGROUND_IMAGE_OPACITY) * 100,
+                )}
+                onChange={handleOpacityChange}
+              />
+              <button type="button" className="note-menu__item" onClick={handleRemoveImage}>
+                Remove image
+              </button>
+            </div>
+          )}
         </div>
       )}
       {hasChildren && isExpanded && (
