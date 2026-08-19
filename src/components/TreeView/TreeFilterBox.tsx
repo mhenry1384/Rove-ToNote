@@ -11,7 +11,7 @@ export function TreeFilterBox() {
       <input
         type="text"
         className="tree-filter__input"
-        placeholder="Filter notes"
+        placeholder="Filter"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
