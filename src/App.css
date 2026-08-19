@@ -253,6 +253,55 @@ body {
   height: 100%;
 }
 
+.tree-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+}
+
+.tree-filter:focus-within {
+  border-color: var(--accent);
+}
+
+.tree-filter__icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.tree-filter__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.tree-filter__input:focus {
+  outline: none;
+}
+
+.tree-filter__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tree-filter__clear:hover {
+  color: var(--text);
+}
+
 .tree-toolbar {
   display: flex;
   gap: 2px;

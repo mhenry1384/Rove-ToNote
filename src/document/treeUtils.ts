@@ -29,6 +29,24 @@ export function buildTree(notes: NoteMeta[]): TreeNode[] {
   return roots;
 }
 
+/** Prunes a tree down to nodes that themselves match `predicate`, plus
+ * whatever ancestors are needed to keep those matches reachable from a
+ * root — matching descendants are kept even under a non-matching parent,
+ * but a matching node's own non-matching children are dropped. */
+export function filterTree(
+  nodes: TreeNode[],
+  predicate: (node: TreeNode) => boolean,
+): TreeNode[] {
+  const result: TreeNode[] = [];
+  for (const node of nodes) {
+    const children = filterTree(node.children, predicate);
+    if (children.length > 0 || predicate(node)) {
+      result.push({ ...node, children });
+    }
+  }
+  return result;
+}
+
 export interface VisibleTreeNode {
   id: string;
   parentId: string | null;

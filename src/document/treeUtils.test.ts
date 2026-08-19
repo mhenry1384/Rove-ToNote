@@ -3,6 +3,7 @@ import {
   buildTree,
   collectDeletionSubtreeIds,
   computeDragMove,
+  filterTree,
   findPreviousSibling,
   flattenVisibleTree,
   getDeletionRoots,
@@ -42,6 +43,46 @@ describe("buildTree", () => {
     const notes: NoteMeta[] = [note({ id: "orphan", parentId: "missing" })];
     const tree = buildTree(notes);
     expect(tree.map((n) => n.id)).toEqual(["orphan"]);
+  });
+});
+
+describe("filterTree", () => {
+  it("keeps a node whose predicate matches, dropping non-matching siblings", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", title: "Groceries" }),
+      note({ id: "b", title: "Taxes" }),
+    ];
+    const tree = buildTree(notes);
+    const result = filterTree(tree, (n) => n.title === "Groceries");
+    expect(result.map((n) => n.id)).toEqual(["a"]);
+  });
+
+  it("keeps a non-matching ancestor to make a matching descendant reachable", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", title: "Work" }),
+      note({ id: "a1", parentId: "a", title: "Groceries" }),
+    ];
+    const tree = buildTree(notes);
+    const result = filterTree(tree, (n) => n.title === "Groceries");
+    expect(result.map((n) => n.id)).toEqual(["a"]);
+    expect(result[0].children.map((n) => n.id)).toEqual(["a1"]);
+  });
+
+  it("drops a matching node's own non-matching children", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", title: "Groceries" }),
+      note({ id: "a1", parentId: "a", title: "Taxes" }),
+    ];
+    const tree = buildTree(notes);
+    const result = filterTree(tree, (n) => n.title === "Groceries");
+    expect(result.map((n) => n.id)).toEqual(["a"]);
+    expect(result[0].children).toEqual([]);
+  });
+
+  it("returns an empty array when nothing matches", () => {
+    const notes: NoteMeta[] = [note({ id: "a", title: "Work" })];
+    const tree = buildTree(notes);
+    expect(filterTree(tree, () => false)).toEqual([]);
   });
 });
 

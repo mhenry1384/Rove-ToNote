@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   closestCenter,
   DndContext,
@@ -10,10 +10,15 @@ import {
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDocumentStore } from "../../document/documentStore";
 import { usePrefsStore } from "../../stores/usePrefsStore";
+import { useVaultStore } from "../../stores/useVaultStore";
+import { useTreeFilterStore } from "../../stores/useTreeFilterStore";
 import { docKey } from "../../document/documentSource";
-import { buildTree, computeDragMove, flattenVisibleTree } from "../../document/treeUtils";
+import { buildTree, computeDragMove, filterTree, flattenVisibleTree } from "../../document/treeUtils";
+import { noteMatchesQuery } from "../../document/noteSearch";
+import { decryptString, parseEnvelope } from "../../document/crypto/vaultCrypto";
 import { NoteTreeItem } from "./NoteTreeItem";
 import { TreeToolbar } from "./TreeToolbar";
+import { TreeFilterBox } from "./TreeFilterBox";
 import { RecentlyDeleted } from "./RecentlyDeleted";
 
 export function TreeView() {
@@ -23,15 +28,66 @@ export function TreeView() {
   const expandState = usePrefsStore((s) =>
     key ? s.prefs.treeExpandState[key] : undefined,
   );
+  const isUnlocked = useVaultStore((s) => s.isUnlocked);
+  const vaultKey = useVaultStore((s) => s.key);
+  const query = useTreeFilterStore((s) => s.query).trim();
+  const isFiltering = query.length > 0;
+
   const liveNotes = useMemo(() => (notes ?? []).filter((n) => !n.deletedAt), [notes]);
   const tree = useMemo(() => buildTree(liveNotes), [liveNotes]);
 
+  // Decrypted plaintext for encrypted notes, cached by `id:content` so an
+  // edit or a re-encrypt naturally invalidates the entry. Only populated
+  // while there's an active search and the vault is unlocked — the vault
+  // key can already decrypt any note on demand, but there's no reason to
+  // do that work until the user actually searches.
+  const [decrypted, setDecrypted] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (!isFiltering || !isUnlocked || !vaultKey) return;
+    const toDecrypt = liveNotes.filter(
+      (n) => n.isEncrypted && !decrypted.has(`${n.id}:${n.content}`),
+    );
+    if (toDecrypt.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const entries: [string, string][] = [];
+      for (const n of toDecrypt) {
+        try {
+          const plaintext = await decryptString(vaultKey, parseEnvelope(n.content));
+          entries.push([`${n.id}:${n.content}`, plaintext]);
+        } catch {
+          // Wrong key for this note (shouldn't happen within one vault) —
+          // it just won't match on content, title search still applies.
+        }
+      }
+      if (!cancelled && entries.length > 0) {
+        setDecrypted((prev) => new Map([...prev, ...entries]));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isFiltering, isUnlocked, vaultKey, liveNotes, decrypted]);
+
+  const filteredTree = useMemo(() => {
+    if (!isFiltering) return tree;
+    return filterTree(tree, (node) => {
+      const plaintextContent = node.isEncrypted
+        ? isUnlocked
+          ? decrypted.get(`${node.id}:${node.content}`)
+          : undefined
+        : node.content;
+      return noteMatchesQuery(node, query, plaintextContent);
+    });
+  }, [tree, isFiltering, query, decrypted, isUnlocked]);
+
   const visible = useMemo(() => {
     const isExpanded = (id: string) =>
-      key ? usePrefsStore.getState().isExpanded(key, id) : true;
-    return flattenVisibleTree(tree, isExpanded);
+      isFiltering ? true : key ? usePrefsStore.getState().isExpanded(key, id) : true;
+    return flattenVisibleTree(filteredTree, isExpanded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tree, expandState, key]);
+  }, [filteredTree, expandState, key, isFiltering]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -58,10 +114,13 @@ export function TreeView() {
 
   return (
     <div className="tree-view">
+      <TreeFilterBox />
       <TreeToolbar />
       <div className="tree-view__list" role="tree">
-        {tree.length === 0 ? (
-          <p className="tree-view__empty">No notes yet — add one above.</p>
+        {filteredTree.length === 0 ? (
+          <p className="tree-view__empty">
+            {isFiltering ? `No notes match "${query}".` : "No notes yet — add one above."}
+          </p>
         ) : (
           <DndContext
             sensors={sensors}
@@ -72,8 +131,8 @@ export function TreeView() {
               items={visible.map((v) => v.id)}
               strategy={verticalListSortingStrategy}
             >
-              {tree.map((node) => (
-                <NoteTreeItem key={node.id} node={node} depth={0} />
+              {filteredTree.map((node) => (
+                <NoteTreeItem key={node.id} node={node} depth={0} isFiltering={isFiltering} />
               ))}
             </SortableContext>
           </DndContext>

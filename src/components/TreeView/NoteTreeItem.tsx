@@ -13,17 +13,23 @@ import { NOTE_COLORS, noteColorBg, DEFAULT_BACKGROUND_IMAGE_OPACITY } from "../.
 interface NoteTreeItemProps {
   node: TreeNode;
   depth: number;
+  /** True while a tree filter is active: forces this row's children open
+   * (the tree has already been pruned to matches, so there's nothing to
+   * hide) and disables drag-reordering, since the visible sibling order
+   * during a filter doesn't reflect the real, unfiltered one. */
+  isFiltering?: boolean;
 }
 
-export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
+export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemProps) {
   const source = useDocumentStore((s) => s.source);
   const key = source ? docKey(source) : null;
   const notes = useDocumentStore((s) => s.doc?.notes);
   const selectedNoteId = useSelectionStore((s) => s.selectedNoteId);
   const pendingRenameId = useSelectionStore((s) => s.pendingRenameId);
-  const isExpanded = usePrefsStore((s) =>
+  const storedExpanded = usePrefsStore((s) =>
     key ? s.isExpanded(key, node.id) : true,
   );
+  const isExpanded = isFiltering || storedExpanded;
 
   const isSelected = selectedNoteId === node.id;
   const hasChildren = node.children.length > 0;
@@ -44,7 +50,7 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: node.id, disabled: isEditing });
+  } = useSortable({ id: node.id, disabled: isEditing || isFiltering });
   const dragStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -77,7 +83,7 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
 
   function toggleExpanded() {
     if (!key) return;
-    void usePrefsStore.getState().setExpanded(key, node.id, !isExpanded);
+    void usePrefsStore.getState().setExpanded(key, node.id, !storedExpanded);
   }
 
   function indent() {
@@ -350,7 +356,12 @@ export function NoteTreeItem({ node, depth }: NoteTreeItemProps) {
       {hasChildren && isExpanded && (
         <div role="group">
           {node.children.map((child) => (
-            <NoteTreeItem key={child.id} node={child} depth={depth + 1} />
+            <NoteTreeItem
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              isFiltering={isFiltering}
+            />
           ))}
         </div>
       )}
