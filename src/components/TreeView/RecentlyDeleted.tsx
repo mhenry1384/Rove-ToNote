@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, FileText, ListChecks, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder, ListChecks, RotateCcw, Trash2 } from "lucide-react";
 import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
-import { getDeletionRoots } from "../../document/treeUtils";
 
 function timeAgo(iso: string): string {
   const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -15,17 +14,14 @@ function timeAgo(iso: string): string {
 }
 
 export function RecentlyDeleted() {
-  const notes = useDocumentStore((s) => s.doc?.notes);
+  const deletedStack = useDocumentStore((s) => s.deletedStack);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const roots = getDeletionRoots(notes ?? []).sort((a, b) =>
-    (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-  );
-  if (roots.length === 0) return null;
+  if (deletedStack.length === 0) return null;
 
-  function handleRestore(id: string) {
-    useDocumentStore.getState().restoreNote(id);
-    useSelectionStore.getState().select(id);
+  function handleRestore(rootId: string) {
+    useDocumentStore.getState().restoreNote(rootId);
+    useSelectionStore.getState().select(rootId);
   }
 
   return (
@@ -37,22 +33,25 @@ export function RecentlyDeleted() {
       >
         {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <Trash2 size={13} />
-        <span>Recently Deleted ({roots.length})</span>
+        <span>Recently Deleted ({deletedStack.length})</span>
       </button>
       {isExpanded && (
         <div className="tree-view__deleted-list">
-          {roots.map((note) => {
-            const Icon = note.type === "todo" ? ListChecks : FileText;
+          {deletedStack.map((entry) => {
+            const root = entry.notes.find((n) => n.id === entry.rootId);
+            if (!root) return null;
+            const Icon =
+              root.type === "todo" ? ListChecks : root.type === "folder" ? Folder : FileText;
             return (
-              <div key={note.id} className="tree-view__deleted-item">
+              <div key={entry.rootId} className="tree-view__deleted-item">
                 <Icon size={13} className="tree-item__icon" />
-                <span className="tree-view__deleted-title">{note.title}</span>
-                <span className="tree-view__deleted-time">{timeAgo(note.deletedAt!)}</span>
+                <span className="tree-view__deleted-title">{root.title}</span>
+                <span className="tree-view__deleted-time">{timeAgo(entry.deletedAt)}</span>
                 <button
                   type="button"
                   className="icon-button"
                   title="Restore"
-                  onClick={() => handleRestore(note.id)}
+                  onClick={() => handleRestore(entry.rootId)}
                 >
                   <RotateCcw size={14} />
                 </button>

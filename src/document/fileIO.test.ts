@@ -49,4 +49,37 @@ describe("fileIO document round trip", () => {
       parseDocument(JSON.stringify({ formatVersion: 99, notes: [] })),
     ).toThrow(DocumentParseError);
   });
+
+  it("drops notes carrying a legacy deletedAt marker from an older file format", () => {
+    const raw = JSON.stringify({
+      formatVersion: 1,
+      vault: null,
+      notes: [
+        {
+          id: "1",
+          parentId: null,
+          title: "Live note",
+          type: "markdown",
+          content: "",
+          isEncrypted: false,
+          sortOrder: 1024,
+          createdAt: "2026-08-06T00:00:00.000Z",
+          updatedAt: "2026-08-06T00:00:00.000Z",
+        },
+        {
+          id: "2",
+          parentId: null,
+          title: "Old soft-deleted note",
+          type: "markdown",
+          content: "",
+          isEncrypted: false,
+          sortOrder: 2048,
+          createdAt: "2026-08-06T00:00:00.000Z",
+          updatedAt: "2026-08-06T00:00:00.000Z",
+          deletedAt: "2026-08-06T00:00:00.000Z",
+        },
+      ],
+    });
+    expect(parseDocument(raw).notes.map((n) => n.id)).toEqual(["1"]);
+  });
 });

@@ -29,24 +29,6 @@ export function buildTree(notes: NoteMeta[]): TreeNode[] {
   return roots;
 }
 
-/** Prunes a tree down to nodes that themselves match `predicate`, plus
- * whatever ancestors are needed to keep those matches reachable from a
- * root — matching descendants are kept even under a non-matching parent,
- * but a matching node's own non-matching children are dropped. */
-export function filterTree(
-  nodes: TreeNode[],
-  predicate: (node: TreeNode) => boolean,
-): TreeNode[] {
-  const result: TreeNode[] = [];
-  for (const node of nodes) {
-    const children = filterTree(node.children, predicate);
-    if (children.length > 0 || predicate(node)) {
-      result.push({ ...node, children });
-    }
-  }
-  return result;
-}
-
 export interface VisibleTreeNode {
   id: string;
   parentId: string | null;
@@ -206,34 +188,15 @@ export function computeDragMove(
   };
 }
 
-/** A deleted note is a "deletion root" — the top of one soft-deleted subtree —
- * if its parent is missing/live, or was deleted in a different operation. */
-function isDeletionRoot(note: NoteMeta, byId: Map<string, NoteMeta>): boolean {
-  if (!note.deletedAt) return false;
-  const parent = note.parentId ? byId.get(note.parentId) : undefined;
-  return !parent || parent.deletedAt !== note.deletedAt;
-}
-
-/** The top-level deleted notes, i.e. one entry per delete operation, each
- * representing an entire soft-deleted subtree that can be restored together. */
-export function getDeletionRoots(notes: NoteMeta[]): NoteMeta[] {
-  const byId = new Map(notes.map((n) => [n.id, n]));
-  return notes.filter((n) => isDeletionRoot(n, byId));
-}
-
-/** All ids in the soft-deleted subtree rooted at `rootId` — the root plus any
- * descendants that share its exact `deletedAt` (i.e. were deleted alongside it). */
-export function collectDeletionSubtreeIds(
-  notes: NoteMeta[],
-  rootId: string,
-): Set<string> {
+/** `rootId` plus every note nested under it (at any depth) via parentId. Used
+ * to gather a whole subtree — e.g. everything a delete needs to remove
+ * together, or everything under a folder when checking it's empty. */
+export function collectSubtreeIds(notes: NoteMeta[], rootId: string): Set<string> {
   const ids = new Set<string>();
-  const root = notes.find((n) => n.id === rootId);
-  if (!root?.deletedAt) return ids;
   const walk = (id: string) => {
     ids.add(id);
     for (const n of notes) {
-      if (n.parentId === id && n.deletedAt === root.deletedAt) walk(n.id);
+      if (n.parentId === id) walk(n.id);
     }
   };
   walk(rootId);
@@ -248,7 +211,7 @@ export function findPreviousSibling(
   const note = notes.find((n) => n.id === id);
   if (!note) return null;
   const siblings = notes
-    .filter((n) => n.parentId === note.parentId && !n.deletedAt)
+    .filter((n) => n.parentId === note.parentId)
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const index = siblings.findIndex((n) => n.id === id);
   return index > 0 ? siblings[index - 1].id : null;

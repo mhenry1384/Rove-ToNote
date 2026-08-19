@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message } from "@tauri-apps/plugin-dialog";
-import { Cloud, CloudOff, Lock, RefreshCw, Unlock } from "lucide-react";
+import { Cloud, CloudOff, KeyRound, Lock, RefreshCw, Unlock } from "lucide-react";
 import "./App.css";
 import { useDocumentStore } from "./document/documentStore";
 import { usePrefsStore } from "./stores/usePrefsStore";
@@ -19,6 +19,7 @@ import { WelcomeScreen } from "./components/Welcome/WelcomeScreen";
 import { TreeView } from "./components/TreeView/TreeView";
 import { NoteEditor } from "./components/NoteEditor/NoteEditor";
 import { PasswordPrompt } from "./components/Vault/PasswordPrompt";
+import { ChangePasswordModal } from "./components/Vault/ChangePasswordModal";
 import { DriveFilePicker } from "./components/Drive/DriveFilePicker";
 import { SaveToDriveModal } from "./components/Drive/SaveToDriveModal";
 import { ConflictBanner } from "./components/Drive/ConflictBanner";
@@ -170,9 +171,20 @@ function App() {
             {isVaultUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
           </button>
         )}
+        {doc.vault && isVaultUnlocked && (
+          <button
+            type="button"
+            className="icon-button"
+            title="Change vault password"
+            onClick={() => useVaultStore.getState().openChangePasswordPrompt()}
+          >
+            <KeyRound size={16} />
+          </button>
+        )}
       </header>
       <ConflictBanner />
       <PasswordPrompt />
+      <ChangePasswordModal />
       <DriveFilePicker />
       <SaveToDriveModal />
       <Toast />

@@ -1,25 +1,32 @@
-import { FilePlus, ListPlus, Trash2 } from "lucide-react";
+import { FilePlus, FolderPlus, ListPlus, Trash2 } from "lucide-react";
 import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
+import { useTreeFilterStore } from "../../stores/useTreeFilterStore";
 import { deleteNoteWithUndo, isNoteEmpty } from "../../document/noteActions";
 import type { NoteType } from "../../document/types";
 
+const TITLES: Record<NoteType, string> = {
+  markdown: "New Note",
+  todo: "New To-Do List",
+  folder: "New Folder",
+};
+
 export function TreeToolbar() {
   const selectedNoteId = useSelectionStore((s) => s.selectedNoteId);
+  const isFiltering = useTreeFilterStore((s) => s.query.trim().length > 0);
 
   async function handleAdd(type: NoteType) {
     const doc = useDocumentStore.getState().doc;
     const selected = doc?.notes.find((n) => n.id === selectedNoteId);
     const parentId = selected?.parentId ?? null;
-    const title = type === "todo" ? "New To-Do List" : "New Note";
+    const title = TITLES[type];
 
     const existingBlank = doc?.notes.find(
       (n) =>
-        !n.deletedAt &&
         n.parentId === parentId &&
         n.type === type &&
         n.title === title &&
-        isNoteEmpty(n),
+        isNoteEmpty(n, doc.notes),
     );
     if (existingBlank) {
       useSelectionStore.getState().selectAndRename(existingBlank.id);
@@ -52,6 +59,15 @@ export function TreeToolbar() {
         onClick={() => void handleAdd("todo")}
       >
         <ListPlus size={16} />
+      </button>
+      <button
+        type="button"
+        className="icon-button"
+        title={isFiltering ? "Clear the filter to create a folder" : "New folder"}
+        disabled={isFiltering}
+        onClick={() => void handleAdd("folder")}
+      >
+        <FolderPlus size={16} />
       </button>
       <button
         type="button"

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Lock } from "lucide-react";
+import { Folder, Lock } from "lucide-react";
 import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
 import { useVaultStore } from "../../stores/useVaultStore";
@@ -130,8 +130,13 @@ export function NoteEditor() {
           defaultValue={content}
           onChange={handleChange}
         />
-      ) : (
+      ) : note.type === "todo" ? (
         <TodoEditor content={content} onChange={handleChange} />
+      ) : (
+        <div className="note-editor__folder-placeholder">
+          <Folder size={28} />
+          <p>This is a folder. Select or create a note inside it.</p>
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Plus, X } from "lucide-react";
 import {
   closestCenter,
   DndContext,
@@ -10,6 +11,7 @@ import {
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import {
   parseTodoMarkdown,
+  pruneCompletedItems,
   serializeTodoMarkdown,
   sortItemsForDisplay,
   type Priority,
@@ -33,6 +35,7 @@ const SORT_MODES: { mode: SortMode; label: string }[] = [
 export function TodoEditor({ content, onChange }: TodoEditorProps) {
   const [doc, setDoc] = useState<TodoDoc>(() => parseTodoMarkdown(content));
   const [draftText, setDraftText] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
 
   function updateDoc(next: TodoDoc) {
     setDoc(next);
@@ -45,6 +48,16 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
 
   function mapItem(itemId: string, fn: (item: TodoItem) => TodoItem) {
     updateItems(doc.items.map((item) => (item.id === itemId ? fn(item) : item)));
+  }
+
+  function handleToggleChecked(itemId: string) {
+    const now = new Date().toISOString();
+    const next = doc.items.map((item) =>
+      item.id === itemId
+        ? { ...item, checked: !item.checked, completedAt: !item.checked ? now : undefined }
+        : item,
+    );
+    updateItems(pruneCompletedItems(next));
   }
 
   function handleAddItem() {
@@ -74,8 +87,46 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
     updateItems(arrayMove(doc.items, oldIndex, newIndex));
   }
 
-  const displayItems = sortItemsForDisplay(doc.items, doc.sortMode);
+  const sortedItems = sortItemsForDisplay(doc.items, doc.sortMode);
+  const activeCount = doc.items.length - doc.items.filter((i) => i.checked).length;
+  const activeItems = sortedItems.slice(0, activeCount);
+  const completedItems = sortedItems.slice(activeCount);
   const dragDisabled = doc.sortMode !== "manual";
+  const visibleItems = showCompleted ? [...activeItems, ...completedItems] : activeItems;
+
+  function renderRow(item: TodoItem) {
+    return (
+      <TodoItemRow
+        key={item.id}
+        item={item}
+        dragDisabled={dragDisabled || item.checked}
+        onToggleChecked={() => handleToggleChecked(item.id)}
+        onTextChange={(text) => mapItem(item.id, (i) => ({ ...i, text }))}
+        onPriorityChange={(priority: Priority) =>
+          mapItem(item.id, (i) => ({ ...i, priority }))
+        }
+        onDelete={() => updateItems(doc.items.filter((i) => i.id !== item.id))}
+        onAddNote={() =>
+          mapItem(item.id, (i) => ({
+            ...i,
+            notes: [...i.notes, { id: crypto.randomUUID(), text: "" }],
+          }))
+        }
+        onNoteTextChange={(noteId, text) =>
+          mapItem(item.id, (i) => ({
+            ...i,
+            notes: i.notes.map((n) => (n.id === noteId ? { ...n, text } : n)),
+          }))
+        }
+        onNoteDelete={(noteId) =>
+          mapItem(item.id, (i) => ({
+            ...i,
+            notes: i.notes.filter((n) => n.id !== noteId),
+          }))
+        }
+      />
+    );
+  }
 
   return (
     <div className="todo-editor">
@@ -94,7 +145,7 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
         </div>
       </div>
       <div className="todo-editor__list">
-        {displayItems.length === 0 ? (
+        {doc.items.length === 0 ? (
           <p className="todo-editor__empty">No tasks yet — add one below.</p>
         ) : (
           <DndContext
@@ -103,61 +154,60 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={displayItems.map((item) => item.id)}
+              items={visibleItems.map((item) => item.id)}
               strategy={verticalListSortingStrategy}
             >
-              {displayItems.map((item) => (
-                <TodoItemRow
-                  key={item.id}
-                  item={item}
-                  dragDisabled={dragDisabled}
-                  onToggleChecked={() =>
-                    mapItem(item.id, (i) => ({ ...i, checked: !i.checked }))
-                  }
-                  onTextChange={(text) => mapItem(item.id, (i) => ({ ...i, text }))}
-                  onPriorityChange={(priority: Priority) =>
-                    mapItem(item.id, (i) => ({ ...i, priority }))
-                  }
-                  onDelete={() => updateItems(doc.items.filter((i) => i.id !== item.id))}
-                  onAddNote={() =>
-                    mapItem(item.id, (i) => ({
-                      ...i,
-                      notes: [...i.notes, { id: crypto.randomUUID(), text: "" }],
-                    }))
-                  }
-                  onNoteTextChange={(noteId, text) =>
-                    mapItem(item.id, (i) => ({
-                      ...i,
-                      notes: i.notes.map((n) => (n.id === noteId ? { ...n, text } : n)),
-                    }))
-                  }
-                  onNoteDelete={(noteId) =>
-                    mapItem(item.id, (i) => ({
-                      ...i,
-                      notes: i.notes.filter((n) => n.id !== noteId),
-                    }))
-                  }
-                />
-              ))}
+              {activeItems.map(renderRow)}
+              {completedItems.length > 0 && (
+                <button
+                  type="button"
+                  className="todo-editor__completed-toggle"
+                  onClick={() => setShowCompleted((v) => !v)}
+                >
+                  {showCompleted ? "Hide" : "Show"} completed ({completedItems.length})
+                </button>
+              )}
+              {showCompleted && completedItems.map(renderRow)}
             </SortableContext>
           </DndContext>
         )}
       </div>
-      <input
-        type="text"
-        className="todo-editor__add-input"
-        placeholder="Add a task…"
-        value={draftText}
-        onChange={(e) => setDraftText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            handleAddItem();
-          } else if (e.key === "Escape") {
-            setDraftText("");
-          }
-        }}
-      />
+      <div className="todo-editor__add-row">
+        <input
+          type="text"
+          className="todo-editor__add-input"
+          placeholder="Add a task…"
+          value={draftText}
+          onChange={(e) => setDraftText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAddItem();
+            } else if (e.key === "Escape") {
+              setDraftText("");
+            }
+          }}
+        />
+        {draftText && (
+          <button
+            type="button"
+            className="todo-editor__add-cancel"
+            title="Clear"
+            onClick={() => setDraftText("")}
+          >
+            <X size={14} />
+          </button>
+        )}
+        <button
+          type="button"
+          className="todo-editor__add-button"
+          title="Add task"
+          disabled={!draftText.trim()}
+          onClick={handleAddItem}
+        >
+          <Plus size={16} />
+        </button>
+      </div>
     </div>
   );
 }

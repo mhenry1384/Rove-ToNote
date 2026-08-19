@@ -13,7 +13,7 @@ import { usePrefsStore } from "../../stores/usePrefsStore";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTreeFilterStore } from "../../stores/useTreeFilterStore";
 import { docKey } from "../../document/documentSource";
-import { buildTree, computeDragMove, filterTree, flattenVisibleTree } from "../../document/treeUtils";
+import { buildTree, computeDragMove, flattenVisibleTree, type TreeNode } from "../../document/treeUtils";
 import { noteMatchesQuery } from "../../document/noteSearch";
 import { decryptString, parseEnvelope } from "../../document/crypto/vaultCrypto";
 import { NoteTreeItem } from "./NoteTreeItem";
@@ -33,7 +33,7 @@ export function TreeView() {
   const query = useTreeFilterStore((s) => s.query).trim();
   const isFiltering = query.length > 0;
 
-  const liveNotes = useMemo(() => (notes ?? []).filter((n) => !n.deletedAt), [notes]);
+  const liveNotes = useMemo(() => notes ?? [], [notes]);
   const tree = useMemo(() => buildTree(liveNotes), [liveNotes]);
 
   // Decrypted plaintext for encrypted notes, cached by `id:content` so an
@@ -70,17 +70,22 @@ export function TreeView() {
     };
   }, [isFiltering, isUnlocked, vaultKey, liveNotes, decrypted]);
 
+  // While filtering, folders and hierarchy stop being meaningful — just show
+  // every matching note/to-do list as a flat list, wherever it lives.
   const filteredTree = useMemo(() => {
     if (!isFiltering) return tree;
-    return filterTree(tree, (node) => {
-      const plaintextContent = node.isEncrypted
-        ? isUnlocked
-          ? decrypted.get(`${node.id}:${node.content}`)
-          : undefined
-        : node.content;
-      return noteMatchesQuery(node, query, plaintextContent);
-    });
-  }, [tree, isFiltering, query, decrypted, isUnlocked]);
+    return liveNotes
+      .filter((n) => n.type !== "folder")
+      .filter((n) => {
+        const plaintextContent = n.isEncrypted
+          ? isUnlocked
+            ? decrypted.get(`${n.id}:${n.content}`)
+            : undefined
+          : n.content;
+        return noteMatchesQuery(n, query, plaintextContent);
+      })
+      .map((n): TreeNode => ({ ...n, children: [] }));
+  }, [tree, isFiltering, query, decrypted, isUnlocked, liveNotes]);
 
   const visible = useMemo(() => {
     const isExpanded = (id: string) =>
@@ -99,7 +104,7 @@ export function TreeView() {
     const currentNotes = useDocumentStore.getState().doc?.notes;
     if (!currentNotes) return;
     const move = computeDragMove(
-      currentNotes.filter((n) => !n.deletedAt),
+      currentNotes,
       visible,
       String(active.id),
       String(over.id),

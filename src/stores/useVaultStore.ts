@@ -21,6 +21,8 @@ interface VaultState {
   isUnlocked: boolean;
   key: CryptoKey | null;
   prompt: VaultPrompt | null;
+  /** Whether the "change vault password" modal is open. */
+  isChangePasswordOpen: boolean;
 
   /** Resolves true once unlocked (immediately, or after the user completes
    * the password prompt), false if they cancel. Opens the prompt itself
@@ -31,6 +33,8 @@ interface VaultState {
   lock: () => void;
   /** Call on any user interaction; resets the idle-relock timer while unlocked. */
   bumpActivity: () => void;
+  openChangePasswordPrompt: () => void;
+  closeChangePasswordPrompt: () => void;
 }
 
 let pendingResolve: ((ok: boolean) => void) | null = null;
@@ -53,6 +57,7 @@ export const useVaultStore = create<VaultState>((set, get) => {
     isUnlocked: false,
     key: null,
     prompt: null,
+    isChangePasswordOpen: false,
 
     ensureUnlocked: () => {
       if (get().isUnlocked) {
@@ -120,5 +125,8 @@ export const useVaultStore = create<VaultState>((set, get) => {
     bumpActivity: () => {
       if (get().isUnlocked) armIdleTimer();
     },
+
+    openChangePasswordPrompt: () => set({ isChangePasswordOpen: true }),
+    closeChangePasswordPrompt: () => set({ isChangePasswordOpen: false }),
   };
 });

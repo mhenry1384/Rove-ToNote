@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   createEmptyTodoDoc,
   parseTodoMarkdown,
+  pruneCompletedItems,
   serializeTodoMarkdown,
   sortItemsForDisplay,
   type TodoDoc,
+  type TodoItem,
   type Priority,
 } from "./todoMarkdown";
 
@@ -45,6 +47,23 @@ describe("todoMarkdown round trip: parse(serialize(x)) === x", () => {
               text: "Check for a coupon\nAnd bring the reusable bag",
             },
           ],
+        },
+      ],
+    };
+    expect(parseTodoMarkdown(serializeTodoMarkdown(doc))).toEqual(doc);
+  });
+
+  it("round-trips a completed item's completedAt timestamp", () => {
+    const doc: TodoDoc = {
+      sortMode: "manual",
+      items: [
+        {
+          id: "item-1",
+          text: "Done thing",
+          checked: true,
+          priority: "none",
+          notes: [],
+          completedAt: "2026-08-06T00:00:00.000Z",
         },
       ],
     };
@@ -92,8 +111,8 @@ describe("sortItemsForDisplay", () => {
     { id: "3", text: "Cherry", checked: false, priority: "medium", notes: [] },
   ];
 
-  it("leaves manual order untouched", () => {
-    expect(sortItemsForDisplay(items, "manual")).toBe(items);
+  it("leaves manual order untouched (when nothing is checked)", () => {
+    expect(sortItemsForDisplay(items, "manual")).toEqual(items);
   });
 
   it("does not mutate the input array for priority/alphabetical modes", () => {
@@ -110,5 +129,57 @@ describe("sortItemsForDisplay", () => {
   it("sorts alphabetically", () => {
     const sorted = sortItemsForDisplay(items, "alphabetical");
     expect(sorted.map((i) => i.text)).toEqual(["Apple", "Banana", "Cherry"]);
+  });
+
+  it("moves checked items after unchecked ones, regardless of mode", () => {
+    const withChecked: TodoDoc["items"] = [
+      { id: "1", text: "Zebra", checked: true, priority: "none", notes: [] },
+      { id: "2", text: "Banana", checked: false, priority: "none", notes: [] },
+      { id: "3", text: "Apple", checked: true, priority: "none", notes: [] },
+      { id: "4", text: "Cherry", checked: false, priority: "none", notes: [] },
+    ];
+    expect(sortItemsForDisplay(withChecked, "manual").map((i) => i.text)).toEqual([
+      "Banana",
+      "Cherry",
+      "Zebra",
+      "Apple",
+    ]);
+    expect(sortItemsForDisplay(withChecked, "alphabetical").map((i) => i.text)).toEqual([
+      "Banana",
+      "Cherry",
+      "Apple",
+      "Zebra",
+    ]);
+  });
+});
+
+describe("pruneCompletedItems", () => {
+  function completedItem(id: string, completedAt: string): TodoItem {
+    return { id, text: id, checked: true, priority: "none", notes: [], completedAt };
+  }
+
+  it("keeps everything when at or under the cap", () => {
+    const items = [completedItem("1", "2026-08-01T00:00:00.000Z")];
+    expect(pruneCompletedItems(items, 10)).toBe(items);
+  });
+
+  it("drops the oldest-completed items beyond the cap", () => {
+    const items = [
+      completedItem("old", "2026-08-01T00:00:00.000Z"),
+      completedItem("mid", "2026-08-02T00:00:00.000Z"),
+      completedItem("new", "2026-08-03T00:00:00.000Z"),
+    ];
+    const pruned = pruneCompletedItems(items, 2);
+    expect(pruned.map((i) => i.id)).toEqual(["mid", "new"]);
+  });
+
+  it("never touches unchecked items", () => {
+    const items: TodoItem[] = [
+      { id: "active", text: "active", checked: false, priority: "none", notes: [] },
+      completedItem("old", "2026-08-01T00:00:00.000Z"),
+      completedItem("new", "2026-08-02T00:00:00.000Z"),
+    ];
+    const pruned = pruneCompletedItems(items, 1);
+    expect(pruned.map((i) => i.id)).toEqual(["active", "new"]);
   });
 });

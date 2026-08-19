@@ -11,20 +11,32 @@ import {
   serializeEnvelope,
 } from "./crypto/vaultCrypto";
 
-export function isNoteEmpty(note: NoteMeta): boolean {
+/** `allNotes` is needed to tell an empty folder (no children) from a
+ * non-empty one — folders have no content of their own to check. */
+export function isNoteEmpty(note: NoteMeta, allNotes: NoteMeta[]): boolean {
+  if (note.type === "folder") {
+    return !allNotes.some((n) => n.parentId === note.id);
+  }
   if (note.type === "todo") {
     return parseTodoMarkdown(note.content).items.length === 0;
   }
   return note.content.trim() === "";
 }
 
-/** Soft-deletes a note (and its children), clearing the selection if the
- * deleted note was selected, and offers an "Undo" toast to restore it. Up to
- * five deleted notes are kept around for undo before being purged for good. */
+/** Deletes a note (and its children — refused for a non-empty folder),
+ * clearing the selection if the deleted note was selected, and offers an
+ * "Undo" toast to restore it. Up to ten deleted notes are kept around for
+ * undo for the life of the running app (see documentStore's deletedStack). */
 export function deleteNoteWithUndo(noteId: string): void {
   const doc = useDocumentStore.getState().doc;
   const note = doc?.notes.find((n) => n.id === noteId);
-  if (!note) return;
+  if (!doc || !note) return;
+  if (note.type === "folder" && doc.notes.some((n) => n.parentId === noteId)) {
+    useToastStore
+      .getState()
+      .show(`"${note.title}" isn't empty — move or delete its contents first.`);
+    return;
+  }
   useDocumentStore.getState().deleteNote(noteId);
   if (useSelectionStore.getState().selectedNoteId === noteId) {
     useSelectionStore.getState().select(null);
@@ -42,13 +54,13 @@ export function deleteNoteWithUndo(noteId: string): void {
  * then encrypts the note's content in place. */
 export async function encryptNote(noteId: string): Promise<void> {
   const before = useDocumentStore.getState().doc?.notes.find((n) => n.id === noteId);
-  if (!before || before.isEncrypted) return;
+  if (!before || before.isEncrypted || before.type === "folder") return;
 
   const unlocked = await useVaultStore.getState().ensureUnlocked();
   if (!unlocked) return;
   const key = useVaultStore.getState().key;
   const note = useDocumentStore.getState().doc?.notes.find((n) => n.id === noteId);
-  if (!key || !note || note.isEncrypted) return;
+  if (!key || !note || note.isEncrypted || note.type === "folder") return;
 
   const envelope = await encryptString(key, note.content);
   useDocumentStore.getState().setEncrypted(noteId, true, serializeEnvelope(envelope));

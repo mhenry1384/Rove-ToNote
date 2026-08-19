@@ -28,7 +28,15 @@ export function parseDocument(raw: string): ToNoteDocument {
     );
   }
 
-  return doc;
+  // Older files may still carry notes soft-deleted under a since-removed
+  // scheme (a `deletedAt` marker kept in `notes` indefinitely). Deletion is
+  // now purely in-memory and session-scoped, so any such leftover is
+  // already effectively "deleted" from the user's perspective — drop it now
+  // rather than resurrecting it into the live tree.
+  return {
+    ...doc,
+    notes: doc.notes.filter((n) => !n.deletedAt),
+  };
 }
 
 export function serializeDocument(doc: ToNoteDocument): string {

@@ -1,4 +1,4 @@
-export type NoteType = "markdown" | "todo";
+export type NoteType = "markdown" | "todo" | "folder";
 
 export interface NoteMeta {
   id: string;
@@ -19,9 +19,11 @@ export interface NoteMeta {
   /** Background image opacity from 0 to 1. Falls back to DEFAULT_BACKGROUND_IMAGE_OPACITY
    * when a backgroundImageUrl is set but this is absent. */
   backgroundImageOpacity?: number | null;
-  /** ISO timestamp when this note was soft-deleted, or absent/null if it's live.
-   * Descendants deleted as part of the same delete operation share this exact
-   * timestamp, which is how restore/prune know which subtree they belong to. */
+  /** Legacy soft-delete marker from an older on-disk format. New code never
+   * sets this — deletion is now purely in-memory and session-scoped (see
+   * documentStore's deletedStack) — but a note read from an old file may
+   * still carry it, and such notes are filtered out on load (see
+   * fileIO.parseDocument). */
   deletedAt?: string | null;
 }
 

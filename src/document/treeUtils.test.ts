@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTree,
-  collectDeletionSubtreeIds,
+  collectSubtreeIds,
   computeDragMove,
-  filterTree,
   findPreviousSibling,
   flattenVisibleTree,
-  getDeletionRoots,
 } from "./treeUtils";
 import type { NoteMeta } from "./types";
 
@@ -46,46 +44,6 @@ describe("buildTree", () => {
   });
 });
 
-describe("filterTree", () => {
-  it("keeps a node whose predicate matches, dropping non-matching siblings", () => {
-    const notes: NoteMeta[] = [
-      note({ id: "a", title: "Groceries" }),
-      note({ id: "b", title: "Taxes" }),
-    ];
-    const tree = buildTree(notes);
-    const result = filterTree(tree, (n) => n.title === "Groceries");
-    expect(result.map((n) => n.id)).toEqual(["a"]);
-  });
-
-  it("keeps a non-matching ancestor to make a matching descendant reachable", () => {
-    const notes: NoteMeta[] = [
-      note({ id: "a", title: "Work" }),
-      note({ id: "a1", parentId: "a", title: "Groceries" }),
-    ];
-    const tree = buildTree(notes);
-    const result = filterTree(tree, (n) => n.title === "Groceries");
-    expect(result.map((n) => n.id)).toEqual(["a"]);
-    expect(result[0].children.map((n) => n.id)).toEqual(["a1"]);
-  });
-
-  it("drops a matching node's own non-matching children", () => {
-    const notes: NoteMeta[] = [
-      note({ id: "a", title: "Groceries" }),
-      note({ id: "a1", parentId: "a", title: "Taxes" }),
-    ];
-    const tree = buildTree(notes);
-    const result = filterTree(tree, (n) => n.title === "Groceries");
-    expect(result.map((n) => n.id)).toEqual(["a"]);
-    expect(result[0].children).toEqual([]);
-  });
-
-  it("returns an empty array when nothing matches", () => {
-    const notes: NoteMeta[] = [note({ id: "a", title: "Work" })];
-    const tree = buildTree(notes);
-    expect(filterTree(tree, () => false)).toEqual([]);
-  });
-});
-
 describe("findPreviousSibling", () => {
   const notes: NoteMeta[] = [
     note({ id: "a", sortOrder: 1024 }),
@@ -105,55 +63,22 @@ describe("findPreviousSibling", () => {
   it("returns null for an unknown id", () => {
     expect(findPreviousSibling(notes, "nope")).toBeNull();
   });
-
-  it("skips soft-deleted siblings", () => {
-    const withDeleted: NoteMeta[] = [
-      note({ id: "a", sortOrder: 1024 }),
-      note({ id: "b", sortOrder: 2048, deletedAt: "2026-08-06T00:00:00.000Z" }),
-      note({ id: "c", sortOrder: 3072 }),
-    ];
-    expect(findPreviousSibling(withDeleted, "c")).toBe("a");
-  });
 });
 
-describe("getDeletionRoots", () => {
-  it("returns only the top of each soft-deleted subtree", () => {
+describe("collectSubtreeIds", () => {
+  it("collects the root and all nested descendants", () => {
     const notes: NoteMeta[] = [
       note({ id: "a" }),
-      note({ id: "b", deletedAt: "2026-08-06T00:00:00.000Z" }),
-      note({ id: "b1", parentId: "b", deletedAt: "2026-08-06T00:00:00.000Z" }),
+      note({ id: "a1", parentId: "a" }),
+      note({ id: "a1a", parentId: "a1" }),
+      note({ id: "b" }),
     ];
-    expect(getDeletionRoots(notes).map((n) => n.id)).toEqual(["b"]);
+    expect(collectSubtreeIds(notes, "a")).toEqual(new Set(["a", "a1", "a1a"]));
   });
 
-  it("treats an independently-deleted descendant (different timestamp) as its own root", () => {
-    const notes: NoteMeta[] = [
-      note({ id: "a", deletedAt: "2026-08-06T00:00:00.000Z" }),
-      note({ id: "a1", parentId: "a", deletedAt: "2026-08-05T00:00:00.000Z" }),
-    ];
-    expect(getDeletionRoots(notes).map((n) => n.id).sort()).toEqual(["a", "a1"]);
-  });
-
-  it("ignores live notes", () => {
+  it("returns just the root when it has no children", () => {
     const notes: NoteMeta[] = [note({ id: "a" })];
-    expect(getDeletionRoots(notes)).toEqual([]);
-  });
-});
-
-describe("collectDeletionSubtreeIds", () => {
-  it("collects the root and descendants sharing its exact deletedAt", () => {
-    const ts = "2026-08-06T00:00:00.000Z";
-    const notes: NoteMeta[] = [
-      note({ id: "a", deletedAt: ts }),
-      note({ id: "a1", parentId: "a", deletedAt: ts }),
-      note({ id: "a2", parentId: "a", deletedAt: "2026-08-05T00:00:00.000Z" }),
-    ];
-    expect(collectDeletionSubtreeIds(notes, "a")).toEqual(new Set(["a", "a1"]));
-  });
-
-  it("returns an empty set for a live note", () => {
-    const notes: NoteMeta[] = [note({ id: "a" })];
-    expect(collectDeletionSubtreeIds(notes, "a")).toEqual(new Set());
+    expect(collectSubtreeIds(notes, "a")).toEqual(new Set(["a"]));
   });
 });
 

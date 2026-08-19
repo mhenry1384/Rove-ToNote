@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, FileText, ListChecks, ListIndentDecrease, ListIndentIncrease, Lock, MoreHorizontal, Trash2, Unlock } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder, ListChecks, ListIndentDecrease, ListIndentIncrease, Lock, MoreHorizontal, Trash2, Unlock } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDocumentStore } from "../../document/documentStore";
@@ -8,6 +8,7 @@ import { useSelectionStore } from "../../stores/useSelectionStore";
 import { docKey } from "../../document/documentSource";
 import { findPreviousSibling, type TreeNode } from "../../document/treeUtils";
 import { deleteNoteWithUndo, decryptNote, encryptNote } from "../../document/noteActions";
+import { parseTodoMarkdown } from "../../document/todoMarkdown";
 import { NOTE_COLORS, noteColorBg, DEFAULT_BACKGROUND_IMAGE_OPACITY } from "../../document/noteColors";
 
 interface NoteTreeItemProps {
@@ -142,8 +143,12 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
     };
   }, [isMenuOpen]);
 
-  const Icon = node.type === "todo" ? ListChecks : FileText;
+  const Icon = node.type === "todo" ? ListChecks : node.type === "folder" ? Folder : FileText;
   const colorBg = noteColorBg(node.color);
+  const uncompletedCount =
+    node.type === "todo" && !node.isEncrypted
+      ? parseTodoMarkdown(node.content).items.filter((i) => !i.checked).length
+      : null;
 
   function handleMoreClick(e: React.MouseEvent) {
     e.stopPropagation();
@@ -236,6 +241,9 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
         ) : (
           <span className="tree-item__title">{node.title}</span>
         )}
+        {uncompletedCount !== null && (
+          <span className="tree-item__count">({uncompletedCount})</span>
+        )}
         {node.isEncrypted && <Lock size={12} className="tree-item__lock" />}
         <button
           ref={moreButtonRef}
@@ -266,10 +274,12 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
             <Trash2 size={14} />
             Delete
           </button>
-          <button type="button" className="note-menu__item" onClick={handleToggleEncryption}>
-            {node.isEncrypted ? <Unlock size={14} /> : <Lock size={14} />}
-            {node.isEncrypted ? "Decrypt" : "Encrypt"}
-          </button>
+          {node.type !== "folder" && (
+            <button type="button" className="note-menu__item" onClick={handleToggleEncryption}>
+              {node.isEncrypted ? <Unlock size={14} /> : <Lock size={14} />}
+              {node.isEncrypted ? "Decrypt" : "Encrypt"}
+            </button>
+          )}
           {(canIndent || node.parentId !== null) && (
             <>
               <div className="note-menu__divider" />

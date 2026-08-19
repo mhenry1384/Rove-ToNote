@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { readDocumentFile, writeDocumentFile } from "./fileIO";
 import { appendSortOrder, betweenSortOrder } from "./sortOrder";
-import { collectDeletionSubtreeIds, getDeletionRoots } from "./treeUtils";
+import { collectSubtreeIds } from "./treeUtils";
 import { createEmptyTodoDoc, serializeTodoMarkdown } from "./todoMarkdown";
 import { createDriveDocument, readDriveDocument, writeDriveDocument } from "./drive/driveFileIO";
 import { DEFAULT_BACKGROUND_IMAGE_OPACITY } from "./noteColors";
@@ -17,8 +17,19 @@ import {
 } from "./types";
 
 const AUTOSAVE_DELAY_MS = 30_000;
-/** How many soft-deleted subtrees to keep around for undo before permanently purging the oldest. */
-const MAX_DELETED_ROOTS = 5;
+/** How many deleted notes/to-do lists to keep undoable while the app is
+ * running. Session-only — it's fine to lose this history when the app
+ * closes, so it never touches the saved document. */
+const MAX_DELETED_STACK = 10;
+
+/** One delete operation's worth of undo state: the removed note plus its
+ * whole subtree, exactly as it was, so restoreNote can splice it straight
+ * back into `doc.notes`. */
+export interface DeletedEntry {
+  rootId: string;
+  deletedAt: string;
+  notes: NoteMeta[];
+}
 
 type DriveSyncStatus = "idle" | "checking" | "conflict";
 
@@ -32,6 +43,9 @@ interface DocumentState {
   isDirty: boolean;
   isSaving: boolean;
   loadError: string | null;
+  /** Most-recently-deleted first; capped at MAX_DELETED_STACK. Not part of
+   * ToNoteDocument, so it never gets written to disk. */
+  deletedStack: DeletedEntry[];
 
   driveSyncStatus: DriveSyncStatus;
   driveConflict: DriveConflict | null;
@@ -71,6 +85,10 @@ interface DocumentState {
   /** Content must already be plaintext or ciphertext-envelope JSON as appropriate — encryption itself lives in crypto/. */
   setEncrypted: (id: string, encrypted: boolean, content: string) => void;
   setVault: (vault: VaultInfo) => void;
+  /** Applies a vault password change: swaps in the new vault info (salt/kdf/verifier)
+   * and each re-encrypted note's content in one atomic update. Encryption
+   * itself lives in crypto/ + vaultActions.ts. */
+  applyVaultPasswordChange: (vault: VaultInfo, reEncryptedContent: Map<string, string>) => void;
 }
 
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -90,21 +108,6 @@ function stopDrivePolling() {
 
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-/** Permanently drops the oldest soft-deleted subtrees once more than
- * MAX_DELETED_ROOTS are being kept around for undo. */
-function pruneOldDeletions(notes: NoteMeta[]): NoteMeta[] {
-  const roots = getDeletionRoots(notes).sort((a, b) =>
-    (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-  );
-  const excess = roots.slice(MAX_DELETED_ROOTS);
-  if (excess.length === 0) return notes;
-  const purgeIds = new Set<string>();
-  for (const root of excess) {
-    for (const id of collectDeletionSubtreeIds(notes, root.id)) purgeIds.add(id);
-  }
-  return notes.filter((n) => !purgeIds.has(n.id));
 }
 
 export const useDocumentStore = create<DocumentState>((set, get) => {
@@ -166,6 +169,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
     isDirty: false,
     isSaving: false,
     loadError: null,
+    deletedStack: [],
 
     driveSyncStatus: "idle",
     driveConflict: null,
@@ -179,6 +183,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         doc,
         isDirty: false,
         loadError: null,
+        deletedStack: [],
         driveSyncStatus: "idle",
         driveConflict: null,
       });
@@ -195,6 +200,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
           doc,
           isDirty: false,
           loadError: null,
+          deletedStack: [],
           driveSyncStatus: "idle",
           driveConflict: null,
         });
@@ -215,6 +221,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
           doc,
           isDirty: false,
           loadError: null,
+          deletedStack: [],
           driveSyncStatus: "idle",
           driveConflict: null,
         });
@@ -311,6 +318,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         doc: null,
         isDirty: false,
         loadError: null,
+        deletedStack: [],
         driveSyncStatus: "idle",
         driveConflict: null,
       });
@@ -340,35 +348,40 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
     },
 
     deleteNote: (id) => {
-      mutate((doc) => {
-        const timestamp = nowIso();
-        const idsToMark = new Set<string>();
-        const collect = (targetId: string) => {
-          idsToMark.add(targetId);
-          for (const n of doc.notes) {
-            // Leave already-deleted descendants alone — they belong to a
-            // separate (earlier) delete operation with their own timestamp.
-            if (n.parentId === targetId && !n.deletedAt) collect(n.id);
-          }
-        };
-        collect(id);
-        const notes = doc.notes.map((n) =>
-          idsToMark.has(n.id) ? { ...n, deletedAt: timestamp } : n,
-        );
-        return { ...doc, notes: pruneOldDeletions(notes) };
+      const { doc, deletedStack } = get();
+      if (!doc) return;
+      const idsToRemove = collectSubtreeIds(doc.notes, id);
+      const removed = doc.notes.filter((n) => idsToRemove.has(n.id));
+      if (removed.length === 0) return;
+      const entry: DeletedEntry = { rootId: id, deletedAt: nowIso(), notes: removed };
+      set({
+        doc: { ...doc, notes: doc.notes.filter((n) => !idsToRemove.has(n.id)) },
+        isDirty: true,
+        deletedStack: [entry, ...deletedStack].slice(0, MAX_DELETED_STACK),
       });
+      armAutosave();
     },
 
-    restoreNote: (id) => {
-      mutate((doc) => {
-        const ids = collectDeletionSubtreeIds(doc.notes, id);
-        return {
-          ...doc,
-          notes: doc.notes.map((n) =>
-            ids.has(n.id) ? { ...n, deletedAt: null } : n,
-          ),
-        };
+    restoreNote: (rootId) => {
+      const { doc, deletedStack } = get();
+      if (!doc) return;
+      const entry = deletedStack.find((e) => e.rootId === rootId);
+      if (!entry) return;
+      // If the note's old parent no longer exists (e.g. it was deleted
+      // separately and never restored), fall back to restoring at the top
+      // level rather than dropping the note.
+      const liveIds = new Set(doc.notes.map((n) => n.id));
+      const restored = entry.notes.map((n) =>
+        n.id === rootId && n.parentId && !liveIds.has(n.parentId)
+          ? { ...n, parentId: null }
+          : n,
+      );
+      set({
+        doc: { ...doc, notes: [...doc.notes, ...restored] },
+        isDirty: true,
+        deletedStack: deletedStack.filter((e) => e.rootId !== rootId),
       });
+      armAutosave();
     },
 
     renameNote: (id, title) => {
@@ -493,6 +506,18 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
 
     setVault: (vault) => {
       mutate((doc) => ({ ...doc, vault }));
+    },
+
+    applyVaultPasswordChange: (vault, reEncryptedContent) => {
+      mutate((doc) => ({
+        ...doc,
+        vault,
+        notes: doc.notes.map((n) =>
+          reEncryptedContent.has(n.id)
+            ? { ...n, content: reEncryptedContent.get(n.id)!, updatedAt: nowIso() }
+            : n,
+        ),
+      }));
     },
   };
 });

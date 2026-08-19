@@ -23,6 +23,10 @@ export interface TodoItem {
   checked: boolean;
   priority: Priority;
   notes: TodoNote[];
+  /** ISO timestamp set when the item is checked, cleared when unchecked.
+   * Used to rank completed items so pruneCompletedItems can drop the
+   * oldest ones once more than the cap accumulate. */
+  completedAt?: string;
 }
 
 export interface TodoDoc {
@@ -33,7 +37,7 @@ export interface TodoDoc {
 const META_RE =
   /^<!--\s*tonote:todo meta v1 sortMode="(manual|priority|alphabetical)"\s*-->\s*$/;
 const ITEM_RE =
-  /^- \[([ xX])]\s*(.*?)\s*<!--\s*tonote:item id="([^"]+)"\s*priority="(high|medium|low|none)"\s*-->\s*$/;
+  /^- \[([ xX])]\s*(.*?)\s*<!--\s*tonote:item id="([^"]+)"\s*priority="(high|medium|low|none)"(?:\s*completedAt="([^"]*)")?\s*-->\s*$/;
 const NOTE_RE = /^ {2}- <!--\s*tonote:note id="([^"]+)"\s*-->\s?(.*)$/;
 const NOTE_CONTINUATION_RE = /^ {4,}(.*)$/;
 
@@ -59,13 +63,14 @@ export function parseTodoMarkdown(content: string): TodoDoc {
 
     const itemMatch = line.match(ITEM_RE);
     if (itemMatch) {
-      const [, checkedFlag, text, id, priority] = itemMatch;
+      const [, checkedFlag, text, id, priority, completedAt] = itemMatch;
       currentItem = {
         id,
         text,
         checked: checkedFlag.toLowerCase() === "x",
         priority: priority as Priority,
         notes: [],
+        ...(completedAt ? { completedAt } : {}),
       };
       items.push(currentItem);
       currentNote = null;
@@ -101,8 +106,9 @@ export function serializeTodoMarkdown(doc: TodoDoc): string {
 
   for (const item of doc.items) {
     const checkbox = item.checked ? "x" : " ";
+    const completedAttr = item.completedAt ? ` completedAt="${item.completedAt}"` : "";
     lines.push(
-      `- [${checkbox}] ${item.text} <!-- tonote:item id="${item.id}" priority="${item.priority}" -->`,
+      `- [${checkbox}] ${item.text} <!-- tonote:item id="${item.id}" priority="${item.priority}"${completedAttr} -->`,
     );
     for (const note of item.notes) {
       const noteLines = note.text.split("\n");
@@ -123,11 +129,7 @@ const PRIORITY_RANK: Record<Priority, number> = {
   none: 3,
 };
 
-/** Pure, non-mutating: computes a display order without touching storage order. */
-export function sortItemsForDisplay(
-  items: TodoItem[],
-  mode: SortMode,
-): TodoItem[] {
+function sortGroup(items: TodoItem[], mode: SortMode): TodoItem[] {
   if (mode === "manual") return items;
   const copy = [...items];
   if (mode === "priority") {
@@ -140,4 +142,36 @@ export function sortItemsForDisplay(
     copy.sort((a, b) => a.text.localeCompare(b.text));
   }
   return copy;
+}
+
+/** Pure, non-mutating: computes a display order without touching storage
+ * order. Checked items always sort after unchecked ones, regardless of
+ * mode — each group is ordered independently by `mode`. */
+export function sortItemsForDisplay(
+  items: TodoItem[],
+  mode: SortMode,
+): TodoItem[] {
+  const active = items.filter((i) => !i.checked);
+  const completed = items.filter((i) => i.checked);
+  return [...sortGroup(active, mode), ...sortGroup(completed, mode)];
+}
+
+/** How many completed items to keep around (for the "show completed"
+ * reveal) before discarding the oldest-completed ones. */
+export const MAX_COMPLETED_ITEMS = 10;
+
+/** Pure, non-mutating: once more than `max` items are checked, drops the
+ * oldest-completed ones (by `completedAt`) until at most `max` remain.
+ * Items without a `completedAt` (e.g. from a pre-existing file) are
+ * treated as oldest, since there's no better signal for them. */
+export function pruneCompletedItems(
+  items: TodoItem[],
+  max = MAX_COMPLETED_ITEMS,
+): TodoItem[] {
+  const completed = items
+    .filter((i) => i.checked)
+    .sort((a, b) => (a.completedAt ?? "").localeCompare(b.completedAt ?? ""));
+  if (completed.length <= max) return items;
+  const dropIds = new Set(completed.slice(0, completed.length - max).map((i) => i.id));
+  return items.filter((i) => !dropIds.has(i.id));
 }
