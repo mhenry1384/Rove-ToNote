@@ -1,5 +1,6 @@
 import { useDocumentStore } from "./documentStore";
 import { parseTodoMarkdown } from "./todoMarkdown";
+import { collectSubtreeIds } from "./treeUtils";
 import type { NoteMeta } from "./types";
 import { useSelectionStore } from "../stores/useSelectionStore";
 import { useToastStore } from "../stores/useToastStore";
@@ -80,4 +81,55 @@ export async function decryptNote(noteId: string): Promise<void> {
 
   const plaintext = await decryptString(key, parseEnvelope(note.content));
   useDocumentStore.getState().setEncrypted(noteId, false, plaintext);
+}
+
+/** Encrypts every unencrypted note nested under `folderId` (sub-folders
+ * themselves have no content and are skipped), prompting for the vault
+ * password at most once. */
+export async function encryptAllInFolder(folderId: string): Promise<void> {
+  const doc = useDocumentStore.getState().doc;
+  if (!doc) return;
+  const subtreeIds = collectSubtreeIds(doc.notes, folderId);
+  const targets = doc.notes.filter(
+    (n) => n.id !== folderId && subtreeIds.has(n.id) && n.type !== "folder" && !n.isEncrypted,
+  );
+  if (targets.length === 0) return;
+
+  const unlocked = await useVaultStore.getState().ensureUnlocked();
+  if (!unlocked) return;
+  const key = useVaultStore.getState().key;
+  if (!key) return;
+
+  const entries = await Promise.all(
+    targets.map(async (note) => ({
+      id: note.id,
+      content: serializeEnvelope(await encryptString(key, note.content)),
+    })),
+  );
+  useDocumentStore.getState().setEncryptedBulk(entries, true);
+}
+
+/** Decrypts every encrypted note nested under `folderId`, prompting for the
+ * vault password at most once. */
+export async function decryptAllInFolder(folderId: string): Promise<void> {
+  const doc = useDocumentStore.getState().doc;
+  if (!doc) return;
+  const subtreeIds = collectSubtreeIds(doc.notes, folderId);
+  const targets = doc.notes.filter(
+    (n) => n.id !== folderId && subtreeIds.has(n.id) && n.type !== "folder" && n.isEncrypted,
+  );
+  if (targets.length === 0) return;
+
+  const unlocked = await useVaultStore.getState().ensureUnlocked();
+  if (!unlocked) return;
+  const key = useVaultStore.getState().key;
+  if (!key) return;
+
+  const entries = await Promise.all(
+    targets.map(async (note) => ({
+      id: note.id,
+      content: await decryptString(key, parseEnvelope(note.content)),
+    })),
+  );
+  useDocumentStore.getState().setEncryptedBulk(entries, false);
 }

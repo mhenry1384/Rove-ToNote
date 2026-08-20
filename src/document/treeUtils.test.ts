@@ -157,7 +157,22 @@ describe("computeDragMove", () => {
     expect(computeDragMove(notes, visible, "a", "missing")).toBeNull();
   });
 
-  it("nests under the note now directly above when dragged right past the threshold", () => {
+  it("nests under the note now directly above when dragged right past the threshold, if it's a folder", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "b", sortOrder: 2048 }),
+      note({ id: "c", sortOrder: 3072, type: "folder" }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "a", "c", 30)).toEqual({
+      newParentId: "c",
+      beforeId: null,
+      afterId: null,
+    });
+  });
+
+  it("does not nest under the note now directly above when it isn't a folder", () => {
     const notes: NoteMeta[] = [
       note({ id: "a", sortOrder: 1024 }),
       note({ id: "b", sortOrder: 2048 }),
@@ -166,8 +181,8 @@ describe("computeDragMove", () => {
     const visible = flattenVisibleTree(buildTree(notes), () => true);
 
     expect(computeDragMove(notes, visible, "a", "c", 30)).toEqual({
-      newParentId: "c",
-      beforeId: null,
+      newParentId: null,
+      beforeId: "c",
       afterId: null,
     });
   });
@@ -189,9 +204,9 @@ describe("computeDragMove", () => {
     });
   });
 
-  it("indents in place when nudged right without crossing into another row (over === active)", () => {
+  it("indents in place when nudged right without crossing into another row (over === active), if the sibling above is a folder", () => {
     const notes: NoteMeta[] = [
-      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "a", sortOrder: 1024, type: "folder" }),
       note({ id: "b", sortOrder: 2048 }),
     ];
     const visible = flattenVisibleTree(buildTree(notes), () => true);

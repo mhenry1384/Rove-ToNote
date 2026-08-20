@@ -6,8 +6,14 @@ import { useDocumentStore } from "../../document/documentStore";
 import { usePrefsStore } from "../../stores/usePrefsStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
 import { docKey } from "../../document/documentSource";
-import { findPreviousSibling, type TreeNode } from "../../document/treeUtils";
-import { deleteNoteWithUndo, decryptNote, encryptNote } from "../../document/noteActions";
+import { findPreviousSibling, folderEncryptionState, type TreeNode } from "../../document/treeUtils";
+import {
+  deleteNoteWithUndo,
+  decryptNote,
+  encryptNote,
+  decryptAllInFolder,
+  encryptAllInFolder,
+} from "../../document/noteActions";
 import { parseTodoMarkdown } from "../../document/todoMarkdown";
 import { NOTE_COLORS, noteColorBg, DEFAULT_BACKGROUND_IMAGE_OPACITY } from "../../document/noteColors";
 
@@ -34,7 +40,10 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
 
   const isSelected = selectedNoteId === node.id;
   const hasChildren = node.children.length > 0;
-  const canIndent = !!findPreviousSibling(notes ?? [], node.id);
+  const prevSiblingId = findPreviousSibling(notes ?? [], node.id);
+  // Only folders may have children — indenting under a non-folder sibling is disallowed.
+  const canIndent = !!prevSiblingId && notes?.find((n) => n.id === prevSiblingId)?.type === "folder";
+  const canDelete = node.type !== "folder" || node.children.length === 0;
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(node.title);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -91,7 +100,8 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
     const doc = useDocumentStore.getState().doc;
     if (!doc) return;
     const prevSiblingId = findPreviousSibling(doc.notes, node.id);
-    if (prevSiblingId) {
+    // Only folders may have children.
+    if (prevSiblingId && doc.notes.find((n) => n.id === prevSiblingId)?.type === "folder") {
       useDocumentStore.getState().reparentNote(node.id, prevSiblingId);
       if (key) void usePrefsStore.getState().setExpanded(key, prevSiblingId, true);
     }
@@ -186,6 +196,19 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
     else void encryptNote(node.id);
   }
 
+  const folderEncryption =
+    node.type === "folder" ? folderEncryptionState(notes ?? [], node.id) : null;
+
+  function handleEncryptAll() {
+    setIsMenuOpen(false);
+    void encryptAllInFolder(node.id);
+  }
+
+  function handleDecryptAll() {
+    setIsMenuOpen(false);
+    void decryptAllInFolder(node.id);
+  }
+
   return (
     <div className="tree-item" ref={setNodeRef} style={dragStyle}>
       <div
@@ -263,21 +286,35 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
           style={{ top: menuPos.top, left: menuPos.left }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            type="button"
-            className="note-menu__item"
-            onClick={() => {
-              setIsMenuOpen(false);
-              deleteNoteWithUndo(node.id);
-            }}
-          >
-            <Trash2 size={14} />
-            Delete
-          </button>
+          {canDelete && (
+            <button
+              type="button"
+              className="note-menu__item"
+              onClick={() => {
+                setIsMenuOpen(false);
+                deleteNoteWithUndo(node.id);
+              }}
+            >
+              <Trash2 size={14} />
+              Delete
+            </button>
+          )}
           {node.type !== "folder" && (
             <button type="button" className="note-menu__item" onClick={handleToggleEncryption}>
               {node.isEncrypted ? <Unlock size={14} /> : <Lock size={14} />}
               {node.isEncrypted ? "Decrypt" : "Encrypt"}
+            </button>
+          )}
+          {folderEncryption?.hasEncrypted && (
+            <button type="button" className="note-menu__item" onClick={handleDecryptAll}>
+              <Unlock size={14} />
+              Decrypt All
+            </button>
+          )}
+          {folderEncryption?.hasUnencrypted && (
+            <button type="button" className="note-menu__item" onClick={handleEncryptAll}>
+              <Lock size={14} />
+              Encrypt All
             </button>
           )}
           {(canIndent || node.parentId !== null) && (

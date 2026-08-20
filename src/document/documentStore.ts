@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { backupIfNeeded } from "./backup";
 import { readDocumentFile, writeDocumentFile } from "./fileIO";
 import { appendSortOrder, betweenSortOrder } from "./sortOrder";
 import { collectSubtreeIds } from "./treeUtils";
@@ -43,6 +44,9 @@ interface DocumentState {
   isDirty: boolean;
   isSaving: boolean;
   loadError: string | null;
+  /** True once the doc has changed since the last backup snapshot — cleared
+   * after a successful backup, independent of isDirty/save. */
+  changedSinceBackup: boolean;
   /** Most-recently-deleted first; capped at MAX_DELETED_STACK. Not part of
    * ToNoteDocument, so it never gets written to disk. */
   deletedStack: DeletedEntry[];
@@ -84,6 +88,9 @@ interface DocumentState {
   setNoteBackgroundImage: (id: string, url: string | null, opacity?: number | null) => void;
   /** Content must already be plaintext or ciphertext-envelope JSON as appropriate — encryption itself lives in crypto/. */
   setEncrypted: (id: string, encrypted: boolean, content: string) => void;
+  /** Bulk version of setEncrypted — commits every note in one mutation, for
+   * folder-wide "Encrypt All" / "Decrypt All". */
+  setEncryptedBulk: (entries: { id: string; content: string }[], encrypted: boolean) => void;
   setVault: (vault: VaultInfo) => void;
   /** Applies a vault password change: swaps in the new vault info (salt/kdf/verifier)
    * and each re-encrypted note's content in one atomic update. Encryption
@@ -122,7 +129,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
   function mutate(mutator: (doc: ToNoteDocument) => ToNoteDocument) {
     const { doc } = get();
     if (!doc) return;
-    set({ doc: mutator(doc), isDirty: true });
+    set({ doc: mutator(doc), isDirty: true, changedSinceBackup: true });
     armAutosave();
   }
 
@@ -169,12 +176,15 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
     isDirty: false,
     isSaving: false,
     loadError: null,
+    changedSinceBackup: false,
     deletedStack: [],
 
     driveSyncStatus: "idle",
     driveConflict: null,
 
     newDocument: async (path) => {
+      const prev = get();
+      await backupIfNeeded(prev.source, prev.doc, prev.changedSinceBackup).catch(() => {});
       clearAutosaveTimer();
       stopDrivePolling();
       const doc = createEmptyDocument();
@@ -183,6 +193,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         doc,
         isDirty: false,
         loadError: null,
+        changedSinceBackup: false,
         deletedStack: [],
         driveSyncStatus: "idle",
         driveConflict: null,
@@ -191,6 +202,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
     },
 
     openDocument: async (path) => {
+      const prev = get();
+      await backupIfNeeded(prev.source, prev.doc, prev.changedSinceBackup).catch(() => {});
       clearAutosaveTimer();
       stopDrivePolling();
       try {
@@ -200,6 +213,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
           doc,
           isDirty: false,
           loadError: null,
+          changedSinceBackup: false,
           deletedStack: [],
           driveSyncStatus: "idle",
           driveConflict: null,
@@ -212,6 +226,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
     },
 
     openFromDrive: async (fileId, name) => {
+      const prev = get();
+      await backupIfNeeded(prev.source, prev.doc, prev.changedSinceBackup).catch(() => {});
       clearAutosaveTimer();
       stopDrivePolling();
       try {
@@ -221,6 +237,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
           doc,
           isDirty: false,
           loadError: null,
+          changedSinceBackup: false,
           deletedStack: [],
           driveSyncStatus: "idle",
           driveConflict: null,
@@ -311,6 +328,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
     },
 
     closeDocument: () => {
+      const prev = get();
+      void backupIfNeeded(prev.source, prev.doc, prev.changedSinceBackup);
       clearAutosaveTimer();
       stopDrivePolling();
       set({
@@ -318,6 +337,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         doc: null,
         isDirty: false,
         loadError: null,
+        changedSinceBackup: false,
         deletedStack: [],
         driveSyncStatus: "idle",
         driveConflict: null,
@@ -357,6 +377,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
       set({
         doc: { ...doc, notes: doc.notes.filter((n) => !idsToRemove.has(n.id)) },
         isDirty: true,
+        changedSinceBackup: true,
         deletedStack: [entry, ...deletedStack].slice(0, MAX_DELETED_STACK),
       });
       armAutosave();
@@ -379,6 +400,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
       set({
         doc: { ...doc, notes: [...doc.notes, ...restored] },
         isDirty: true,
+        changedSinceBackup: true,
         deletedStack: deletedStack.filter((e) => e.rootId !== rootId),
       });
       armAutosave();
@@ -499,6 +521,18 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         notes: doc.notes.map((n) =>
           n.id === id
             ? { ...n, isEncrypted: encrypted, content, updatedAt: nowIso() }
+            : n,
+        ),
+      }));
+    },
+
+    setEncryptedBulk: (entries, encrypted) => {
+      const byId = new Map(entries.map((e) => [e.id, e.content]));
+      mutate((doc) => ({
+        ...doc,
+        notes: doc.notes.map((n) =>
+          byId.has(n.id)
+            ? { ...n, isEncrypted: encrypted, content: byId.get(n.id)!, updatedAt: nowIso() }
             : n,
         ),
       }));

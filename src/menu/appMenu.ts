@@ -4,6 +4,8 @@ import { message, open, save } from "@tauri-apps/plugin-dialog";
 import { useDocumentStore } from "../document/documentStore";
 import { usePrefsStore } from "../stores/usePrefsStore";
 import { useDriveStore } from "../stores/useDriveStore";
+import { useSelectionStore } from "../stores/useSelectionStore";
+import { useBackupStore } from "../stores/useBackupStore";
 
 const FILE_FILTERS = [{ name: "ToNote Document", extensions: ["tonote"] }];
 
@@ -118,14 +120,48 @@ async function handleExit(): Promise<void> {
   await getCurrentWindow().destroy();
 }
 
+function handleUndoDelete(): void {
+  const entry = useDocumentStore.getState().deletedStack[0];
+  if (!entry) return;
+  useDocumentStore.getState().restoreNote(entry.rootId);
+  useSelectionStore.getState().select(entry.rootId);
+}
+
+function handleViewBackups(): void {
+  useBackupStore.getState().open();
+}
+
 let saveMenuItem: MenuItem | null = null;
 let driveAuthMenuItem: MenuItem | null = null;
+let undoMenuItem: MenuItem | null = null;
+let viewBackupsMenuItem: MenuItem | null = null;
 
 /** Keeps the Save menu item's enabled state in sync with the document's dirty flag. */
 function watchDirtyState(): void {
   useDocumentStore.subscribe((state, prevState) => {
     if (state.isDirty !== prevState.isDirty && saveMenuItem) {
       void saveMenuItem.setEnabled(state.isDirty);
+    }
+  });
+}
+
+/** Keeps the Undo menu item's enabled state in sync with whether there's a
+ * deleted note left to restore. */
+function watchDeletedStack(): void {
+  useDocumentStore.subscribe((state, prevState) => {
+    const hadEntries = prevState.deletedStack.length > 0;
+    const hasEntries = state.deletedStack.length > 0;
+    if (hadEntries !== hasEntries && undoMenuItem) {
+      void undoMenuItem.setEnabled(hasEntries);
+    }
+  });
+}
+
+/** Keeps the "View Backups…" menu item's enabled state in sync with whether a document is open. */
+function watchDocumentSource(): void {
+  useDocumentStore.subscribe((state, prevState) => {
+    if (state.source !== prevState.source && viewBackupsMenuItem) {
+      void viewBackupsMenuItem.setEnabled(!!state.source);
     }
   });
 }
@@ -168,6 +204,21 @@ export async function installAppMenu(): Promise<void> {
     },
   });
 
+  viewBackupsMenuItem = await MenuItem.new({
+    id: "file-view-backups",
+    text: "View Backups…",
+    enabled: !!useDocumentStore.getState().source,
+    action: () => handleViewBackups(),
+  });
+
+  undoMenuItem = await MenuItem.new({
+    id: "edit-undo",
+    text: "Undo Delete",
+    accelerator: "CmdOrCtrl+Z",
+    enabled: useDocumentStore.getState().deletedStack.length > 0,
+    action: () => handleUndoDelete(),
+  });
+
   const fileMenu = await Submenu.new({
     text: "File",
     items: [
@@ -203,6 +254,8 @@ export async function installAppMenu(): Promise<void> {
       }),
       driveAuthMenuItem,
       await PredefinedMenuItem.new({ item: "Separator" }),
+      viewBackupsMenuItem,
+      await PredefinedMenuItem.new({ item: "Separator" }),
       await MenuItem.new({
         id: "file-exit",
         text: "Exit",
@@ -211,9 +264,16 @@ export async function installAppMenu(): Promise<void> {
     ],
   });
 
-  const menu = await Menu.new({ items: [fileMenu] });
+  const editMenu = await Submenu.new({
+    text: "Edit",
+    items: [undoMenuItem],
+  });
+
+  const menu = await Menu.new({ items: [fileMenu, editMenu] });
   await menu.setAsAppMenu();
 
   watchDirtyState();
   watchDriveAuthState();
+  watchDeletedStack();
+  watchDocumentSource();
 }

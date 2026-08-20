@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message } from "@tauri-apps/plugin-dialog";
 import { Cloud, CloudOff, KeyRound, Lock, RefreshCw, Unlock } from "lucide-react";
@@ -8,6 +9,8 @@ import { usePrefsStore } from "./stores/usePrefsStore";
 import { useVaultStore } from "./stores/useVaultStore";
 import { useDriveStore } from "./stores/useDriveStore";
 import { displayName, docKey } from "./document/documentSource";
+import { backupIfNeeded } from "./document/backup";
+import { startBackupScheduler } from "./document/backupScheduler";
 import {
   installAppMenu,
   handleNew,
@@ -22,6 +25,7 @@ import { PasswordPrompt } from "./components/Vault/PasswordPrompt";
 import { ChangePasswordModal } from "./components/Vault/ChangePasswordModal";
 import { DriveFilePicker } from "./components/Drive/DriveFilePicker";
 import { SaveToDriveModal } from "./components/Drive/SaveToDriveModal";
+import { BackupListModal } from "./components/Backup/BackupListModal";
 import { ConflictBanner } from "./components/Drive/ConflictBanner";
 import { Toast } from "./components/Toast/Toast";
 
@@ -46,8 +50,24 @@ function App() {
 
     void (async () => {
       await installAppMenu();
+      startBackupScheduler();
       await usePrefsStore.getState().load();
       await useDriveStore.getState().restoreSession();
+
+      // An instance opened to view a backup (see BackupListModal) is
+      // launched with that backup's path as a CLI arg — open it directly
+      // and don't let it hijack what the main instance reopens next launch.
+      const startupArg = await invoke<string | null>("get_startup_arg").catch(() => null);
+      if (startupArg) {
+        try {
+          await useDocumentStore.getState().openDocument(startupArg);
+        } catch {
+          // Backup file moved/corrupt — fall back to the welcome screen.
+        }
+        setIsStarting(false);
+        return;
+      }
+
       const lastSource = usePrefsStore.getState().prefs.lastOpenedSource;
       if (lastSource?.kind === "local") {
         try {
@@ -80,6 +100,8 @@ function App() {
           );
           return;
         }
+        const { source, doc, changedSinceBackup } = useDocumentStore.getState();
+        await backupIfNeeded(source, doc, changedSinceBackup).catch(() => {});
         await getCurrentWindow().destroy();
       });
     })();
@@ -187,6 +209,7 @@ function App() {
       <ChangePasswordModal />
       <DriveFilePicker />
       <SaveToDriveModal />
+      <BackupListModal />
       <Toast />
       <div className="app-body">
         <aside className="app-tree-pane">

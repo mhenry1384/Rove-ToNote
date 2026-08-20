@@ -133,7 +133,12 @@ export function computeDragMove(
     naturalParentId = prev ? prev.parentId : (next?.parentId ?? null);
   }
 
-  if (steps > 0 && prev && !isSelfOrDescendant(notes, activeId, prev.id)) {
+  if (
+    steps > 0 &&
+    prev &&
+    !isSelfOrDescendant(notes, activeId, prev.id) &&
+    notes.find((n) => n.id === prev.id)?.type === "folder"
+  ) {
     const siblings = notes
       .filter((n) => n.parentId === prev.id && n.id !== activeId)
       .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -201,6 +206,24 @@ export function collectSubtreeIds(notes: NoteMeta[], rootId: string): Set<string
   };
   walk(rootId);
   return ids;
+}
+
+/** Whether a folder's descendant notes (excluding sub-folders, which have no
+ * content of their own) include any encrypted and/or any unencrypted ones —
+ * drives the "Encrypt All" / "Decrypt All" folder menu options. */
+export function folderEncryptionState(
+  notes: NoteMeta[],
+  folderId: string,
+): { hasEncrypted: boolean; hasUnencrypted: boolean } {
+  const subtreeIds = collectSubtreeIds(notes, folderId);
+  let hasEncrypted = false;
+  let hasUnencrypted = false;
+  for (const note of notes) {
+    if (note.id === folderId || note.type === "folder" || !subtreeIds.has(note.id)) continue;
+    if (note.isEncrypted) hasEncrypted = true;
+    else hasUnencrypted = true;
+  }
+  return { hasEncrypted, hasUnencrypted };
 }
 
 /** Returns the id of `id`'s previous sibling under the same parent, or null if it's the first child. */
