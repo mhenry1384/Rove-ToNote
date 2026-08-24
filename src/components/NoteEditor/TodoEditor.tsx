@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import {
   closestCenter,
@@ -36,6 +36,17 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
   const [doc, setDoc] = useState<TodoDoc>(() => parseTodoMarkdown(content));
   const [draftText, setDraftText] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingScrollId) return;
+    const el = listRef.current?.querySelector(`[data-item-id="${pendingScrollId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      setPendingScrollId(null);
+    }
+  }, [pendingScrollId, doc.items]);
 
   function updateDoc(next: TodoDoc) {
     setDoc(next);
@@ -72,6 +83,7 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
     };
     updateItems([...doc.items, newItem]);
     setDraftText("");
+    setPendingScrollId(newItem.id);
   }
 
   const sensors = useSensors(
@@ -144,7 +156,7 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
           ))}
         </div>
       </div>
-      <div className="todo-editor__list">
+      <div className="todo-editor__list" ref={listRef}>
         {doc.items.length === 0 ? (
           <p className="todo-editor__empty">No tasks yet — add one below.</p>
         ) : (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, FileText, Folder, ListChecks, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder, KeyRound, ListChecks, RotateCcw, Trash2 } from "lucide-react";
 import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
 
@@ -41,7 +41,13 @@ export function RecentlyDeleted() {
             const root = entry.notes.find((n) => n.id === entry.rootId);
             if (!root) return null;
             const Icon =
-              root.type === "todo" ? ListChecks : root.type === "folder" ? Folder : FileText;
+              root.type === "todo"
+                ? ListChecks
+                : root.type === "folder"
+                  ? Folder
+                  : root.type === "password-grid"
+                    ? KeyRound
+                    : FileText;
             return (
               <div key={entry.rootId} className="tree-view__deleted-item">
                 <Icon size={13} className="tree-item__icon" />

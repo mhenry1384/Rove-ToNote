@@ -1,4 +1,4 @@
-export type NoteType = "markdown" | "todo" | "folder";
+export type NoteType = "markdown" | "todo" | "folder" | "password-grid";
 
 export interface NoteMeta {
   id: string;

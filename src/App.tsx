@@ -8,6 +8,7 @@ import { useDocumentStore } from "./document/documentStore";
 import { usePrefsStore } from "./stores/usePrefsStore";
 import { useVaultStore } from "./stores/useVaultStore";
 import { useDriveStore } from "./stores/useDriveStore";
+import { usePasswordGridUndoStore } from "./stores/usePasswordGridUndoStore";
 import { displayName, docKey } from "./document/documentSource";
 import { backupIfNeeded } from "./document/backup";
 import { startBackupScheduler } from "./document/backupScheduler";
@@ -91,8 +92,14 @@ function App() {
     void (async () => {
       unlisten = await getCurrentWindow().onCloseRequested(async (event) => {
         event.preventDefault();
-        const { isDirty: dirty, save } = useDocumentStore.getState();
-        if (dirty) await save();
+        try {
+          const { isDirty: dirty, save } = useDocumentStore.getState();
+          if (dirty) await save();
+        } catch (err) {
+          // A save failure must never leave the window stuck open with no
+          // way to close it — log and still proceed to close below.
+          console.error("Failed to save before closing:", err);
+        }
         if (useDocumentStore.getState().driveConflict) {
           await message(
             "This document has unresolved changes from Google Drive. Resolve the conflict banner before closing.",
@@ -110,6 +117,7 @@ function App() {
 
   useEffect(() => {
     useVaultStore.getState().lock();
+    usePasswordGridUndoStore.getState().clear();
   }, [sourceKey]);
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { readDocumentFile, writeDocumentFile } from "./fileIO";
 import { appendSortOrder, betweenSortOrder } from "./sortOrder";
 import { collectSubtreeIds } from "./treeUtils";
 import { createEmptyTodoDoc, serializeTodoMarkdown } from "./todoMarkdown";
+import { createEmptyPasswordGridDoc, serializePasswordGrid } from "./passwordGrid";
 import { createDriveDocument, readDriveDocument, writeDriveDocument } from "./drive/driveFileIO";
 import { DEFAULT_BACKGROUND_IMAGE_OPACITY } from "./noteColors";
 import { startPolling } from "./drive/polling";
@@ -357,7 +358,11 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         title,
         type,
         content:
-          type === "todo" ? serializeTodoMarkdown(createEmptyTodoDoc()) : "",
+          type === "todo"
+            ? serializeTodoMarkdown(createEmptyTodoDoc())
+            : type === "password-grid"
+              ? serializePasswordGrid(createEmptyPasswordGridDoc())
+              : "",
         isEncrypted: false,
         sortOrder: appendSortOrder(siblingOrders),
         createdAt: timestamp,

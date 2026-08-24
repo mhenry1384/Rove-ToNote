@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, FileText, Folder, ListChecks, ListIndentDecrease, ListIndentIncrease, Lock, MoreHorizontal, Trash2, Unlock } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder, KeyRound, ListChecks, ListIndentDecrease, ListIndentIncrease, Lock, MoreHorizontal, Trash2, Unlock } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDocumentStore } from "../../document/documentStore";
 import { usePrefsStore } from "../../stores/usePrefsStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
+import { useVaultStore } from "../../stores/useVaultStore";
 import { docKey } from "../../document/documentSource";
 import { findPreviousSibling, folderEncryptionState, type TreeNode } from "../../document/treeUtils";
 import {
@@ -15,6 +16,7 @@ import {
   encryptAllInFolder,
 } from "../../document/noteActions";
 import { parseTodoMarkdown } from "../../document/todoMarkdown";
+import { decryptString, parseEnvelope } from "../../document/crypto/vaultCrypto";
 import { NOTE_COLORS, noteColorBg, DEFAULT_BACKGROUND_IMAGE_OPACITY } from "../../document/noteColors";
 
 interface NoteTreeItemProps {
@@ -52,6 +54,36 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
   const inputRef = useRef<HTMLInputElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const isUnlocked = useVaultStore((s) => s.isUnlocked);
+  const vaultKey = useVaultStore((s) => s.key);
+  const [encryptedUncompletedCount, setEncryptedUncompletedCount] = useState<number | null>(null);
+
+  // Encrypted to-do lists show the same "(n)" uncompleted-item count as
+  // unencrypted ones, but only once the vault is unlocked — decrypting just
+  // for the count, without opening the note.
+  useEffect(() => {
+    if (node.type !== "todo" || !node.isEncrypted || !isUnlocked || !vaultKey) {
+      setEncryptedUncompletedCount(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const plaintext = await decryptString(vaultKey, parseEnvelope(node.content));
+        if (!cancelled) {
+          setEncryptedUncompletedCount(
+            parseTodoMarkdown(plaintext).items.filter((i) => !i.checked).length,
+          );
+        }
+      } catch {
+        if (!cancelled) setEncryptedUncompletedCount(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [node.id, node.type, node.isEncrypted, node.content, isUnlocked, vaultKey]);
 
   const {
     setNodeRef,
@@ -153,11 +185,20 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
     };
   }, [isMenuOpen]);
 
-  const Icon = node.type === "todo" ? ListChecks : node.type === "folder" ? Folder : FileText;
+  const Icon =
+    node.type === "todo"
+      ? ListChecks
+      : node.type === "folder"
+        ? Folder
+        : node.type === "password-grid"
+          ? KeyRound
+          : FileText;
   const colorBg = noteColorBg(node.color);
   const uncompletedCount =
-    node.type === "todo" && !node.isEncrypted
-      ? parseTodoMarkdown(node.content).items.filter((i) => !i.checked).length
+    node.type === "todo"
+      ? node.isEncrypted
+        ? encryptedUncompletedCount
+        : parseTodoMarkdown(node.content).items.filter((i) => !i.checked).length
       : null;
 
   function handleMoreClick(e: React.MouseEvent) {

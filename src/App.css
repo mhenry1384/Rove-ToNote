@@ -1238,3 +1238,141 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Password grid */
+
+.password-grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 10px;
+}
+
+.password-grid__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.password-grid__filter {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.password-grid__filter:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.password-grid__table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.password-grid__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.password-grid__table th {
+  position: sticky;
+  top: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.password-grid__table td {
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.password-grid__row {
+  cursor: pointer;
+}
+
+.password-grid__row:hover {
+  background: var(--bg-hover);
+}
+
+.password-grid__row--selected {
+  background: var(--bg-selected);
+}
+
+.password-grid__cell-input {
+  width: 100%;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.password-grid__cell-input:focus {
+  outline: none;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.password-grid__empty {
+  padding: 16px 10px;
+  color: var(--text-muted);
+  text-align: center;
+  cursor: default;
+}
+
+.password-grid__row--empty:hover {
+  background: transparent;
+}
+
+.password-grid__note-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 140px;
+}
+
+.password-grid__note-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.password-grid__note-textarea {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: none;
+}
+
+.password-grid__note-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.password-grid__note-textarea:disabled {
+  opacity: 0.6;
+}

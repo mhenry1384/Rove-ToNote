@@ -13,6 +13,8 @@
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-exists",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "https://accounts.google.com/*" }]

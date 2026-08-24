@@ -116,7 +116,12 @@ async function handleDriveSignOut(): Promise<void> {
 }
 
 async function handleExit(): Promise<void> {
-  await flushIfDirty();
+  try {
+    await flushIfDirty();
+  } catch (err) {
+    // A save failure must never prevent Exit from actually exiting.
+    console.error("Failed to save before exiting:", err);
+  }
   await getCurrentWindow().destroy();
 }
 
@@ -211,10 +216,14 @@ export async function installAppMenu(): Promise<void> {
     action: () => handleViewBackups(),
   });
 
+  // No keyboard accelerator: Ctrl+Z is already the markdown editor's own
+  // text-undo shortcut, and a global accelerator here would intercept it
+  // mid-typing, silently switching the selected note out from under the
+  // user (see handleUndoDelete's select() call) and misdirecting keystrokes
+  // to the wrong note's content. Menu-click only.
   undoMenuItem = await MenuItem.new({
     id: "edit-undo",
     text: "Undo Delete",
-    accelerator: "CmdOrCtrl+Z",
     enabled: useDocumentStore.getState().deletedStack.length > 0,
     action: () => handleUndoDelete(),
   });

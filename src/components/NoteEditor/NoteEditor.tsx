@@ -5,6 +5,7 @@ import { useSelectionStore } from "../../stores/useSelectionStore";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { TodoEditor } from "./TodoEditor";
+import { PasswordGridEditor } from "./PasswordGridEditor";
 import { noteColorBg, DEFAULT_BACKGROUND_IMAGE_OPACITY, NOTE_TEXT_COLOR } from "../../document/noteColors";
 import {
   decryptString,
@@ -21,23 +22,26 @@ export function NoteEditor() {
   const isUnlocked = useVaultStore((s) => s.isUnlocked);
   const vaultKey = useVaultStore((s) => s.key);
 
-  // Decrypted plaintext for the currently-open encrypted note. Read once
-  // per note (like MarkdownEditor's own defaultValue) rather than re-derived
-  // on every keystroke — see the effect below.
-  const [decrypted, setDecrypted] = useState<string | null>(null);
-  const [decryptFailed, setDecryptFailed] = useState(false);
+  // Decrypted plaintext for the currently-open encrypted note, tagged with
+  // the note id it belongs to. Decryption is async, so on the render right
+  // after switching notes `note` has already changed but this state
+  // hasn't caught up yet — tagging it (rather than storing a bare string)
+  // lets the derived `decrypted` below tell "previous note's plaintext,
+  // still stale" apart from "this note's plaintext, ready", instead of
+  // briefly (or, with unlucky timing, persistently) showing the wrong
+  // note's content through the uncontrolled/key-remounted editor below.
+  const [decryptedState, setDecryptedState] = useState<{ noteId: string; plaintext: string } | null>(null);
+  const [decryptFailedFor, setDecryptFailedFor] = useState<string | null>(null);
 
   useEffect(() => {
-    setDecrypted(null);
-    setDecryptFailed(false);
     if (!note || !note.isEncrypted || !isUnlocked || !vaultKey) return;
     let cancelled = false;
     void (async () => {
       try {
         const plaintext = await decryptString(vaultKey, parseEnvelope(note.content));
-        if (!cancelled) setDecrypted(plaintext);
+        if (!cancelled) setDecryptedState({ noteId: note.id, plaintext });
       } catch {
-        if (!cancelled) setDecryptFailed(true);
+        if (!cancelled) setDecryptFailedFor(note.id);
       }
     })();
     return () => {
@@ -48,6 +52,10 @@ export function NoteEditor() {
     // ones writing those edits back out, re-encrypted, below).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id, note?.isEncrypted, isUnlocked, vaultKey]);
+
+  const decrypted =
+    note && decryptedState?.noteId === note.id ? decryptedState.plaintext : null;
+  const decryptFailed = note ? decryptFailedFor === note.id : false;
 
   if (!note) {
     return (
@@ -104,7 +112,7 @@ export function NoteEditor() {
   }
 
   function handleEncryptedChange(plaintext: string) {
-    setDecrypted(plaintext);
+    if (note) setDecryptedState({ noteId: note.id, plaintext });
     if (!vaultKey || !note) return;
     void (async () => {
       const envelope = await encryptString(vaultKey, plaintext);
@@ -132,6 +140,8 @@ export function NoteEditor() {
         />
       ) : note.type === "todo" ? (
         <TodoEditor content={content} onChange={handleChange} />
+      ) : note.type === "password-grid" ? (
+        <PasswordGridEditor noteId={note.id} content={content} onChange={handleChange} />
       ) : (
         <div className="note-editor__folder-placeholder">
           <Folder size={28} />

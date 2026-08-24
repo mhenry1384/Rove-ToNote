@@ -1,5 +1,6 @@
 import { useDocumentStore } from "./documentStore";
 import { parseTodoMarkdown } from "./todoMarkdown";
+import { parsePasswordGrid } from "./passwordGrid";
 import { collectSubtreeIds } from "./treeUtils";
 import type { NoteMeta } from "./types";
 import { useSelectionStore } from "../stores/useSelectionStore";
@@ -20,6 +21,9 @@ export function isNoteEmpty(note: NoteMeta, allNotes: NoteMeta[]): boolean {
   }
   if (note.type === "todo") {
     return parseTodoMarkdown(note.content).items.length === 0;
+  }
+  if (note.type === "password-grid") {
+    return parsePasswordGrid(note.content).entries.length === 0;
   }
   return note.content.trim() === "";
 }

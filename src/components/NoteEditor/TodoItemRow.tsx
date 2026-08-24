@@ -109,6 +109,7 @@ export function TodoItemRow({
       className="todo-item"
       ref={setNodeRef}
       style={dragStyle}
+      data-item-id={item.id}
       onFocus={handleContainerFocus}
       onBlur={handleContainerBlur}
     >

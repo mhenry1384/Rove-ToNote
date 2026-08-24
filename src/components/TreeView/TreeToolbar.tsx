@@ -1,4 +1,4 @@
-import { FilePlus, FolderPlus, ListPlus, Trash2 } from "lucide-react";
+import { FilePlus, FolderPlus, KeyRound, ListPlus, Trash2 } from "lucide-react";
 import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
 import { useTreeFilterStore } from "../../stores/useTreeFilterStore";
@@ -9,6 +9,7 @@ const TITLES: Record<NoteType, string> = {
   markdown: "New Note",
   todo: "New To-Do List",
   folder: "New Folder",
+  "password-grid": "New Password Grid",
 };
 
 export function TreeToolbar() {
@@ -59,6 +60,14 @@ export function TreeToolbar() {
         onClick={() => void handleAdd("todo")}
       >
         <ListPlus size={16} />
+      </button>
+      <button
+        type="button"
+        className="icon-button"
+        title="New password grid"
+        onClick={() => void handleAdd("password-grid")}
+      >
+        <KeyRound size={16} />
       </button>
       <button
         type="button"
