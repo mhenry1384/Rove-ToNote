@@ -350,6 +350,26 @@ body {
   background: var(--bg-selected);
 }
 
+/* Drag-drop position indicator (see useDragPreviewStore) */
+
+.tree-item__row--drop-below {
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+
+.tree-item__row--drop-above {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+.tree-item__row--drop-inside {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: var(--bg-selected);
+}
+
+.tree-item--dragging .tree-item__row {
+  background: var(--bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
 .tree-item__row:focus-visible {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
@@ -777,6 +797,16 @@ body {
 
 .markdown-editor .milkdown .milkdown-top-bar {
   flex-shrink: 0;
+}
+
+/* The colored-note variant makes --crepe-color-surface transparent so the
+   note's background color shows through the editor body — but the top bar
+   is sticky and sits above scrolling content in the same container, so it
+   needs to stay opaque or scrolled-past text shows through it. Same goes
+   for the heading dropdown, which floats over content when open. */
+.note-editor--colored .markdown-editor .milkdown .milkdown-top-bar,
+.note-editor--colored .markdown-editor .milkdown .top-bar-heading-dropdown {
+  background: var(--note-color-bg);
 }
 
 .markdown-editor .milkdown .ProseMirror {

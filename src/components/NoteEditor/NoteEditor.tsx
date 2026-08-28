@@ -66,7 +66,13 @@ export function NoteEditor() {
   }
 
   const colorBg = noteColorBg(note.color);
-  const wrapperStyle = colorBg ? { background: colorBg, color: NOTE_TEXT_COLOR } : undefined;
+  const wrapperStyle = colorBg
+    ? ({
+        background: colorBg,
+        color: NOTE_TEXT_COLOR,
+        "--note-color-bg": colorBg,
+      } as React.CSSProperties)
+    : undefined;
   const wrapperClass = `note-editor${colorBg ? " note-editor--colored" : ""}`;
   const bgImageStyle: React.CSSProperties | undefined = note.backgroundImageUrl
     ? {

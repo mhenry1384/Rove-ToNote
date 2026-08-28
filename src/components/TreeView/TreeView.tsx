@@ -6,20 +6,40 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragMoveEvent,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, type SortingStrategy } from "@dnd-kit/sortable";
 import { useDocumentStore } from "../../document/documentStore";
 import { usePrefsStore } from "../../stores/usePrefsStore";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useTreeFilterStore } from "../../stores/useTreeFilterStore";
+import { useDragPreviewStore } from "../../stores/useDragPreviewStore";
 import { docKey } from "../../document/documentSource";
-import { buildTree, computeDragMove, flattenVisibleTree, type TreeNode } from "../../document/treeUtils";
+import {
+  buildTree,
+  computeDragMove,
+  flattenVisibleTree,
+  type TreeNode,
+} from "../../document/treeUtils";
 import { noteMatchesQuery } from "../../document/noteSearch";
 import { decryptString, parseEnvelope } from "../../document/crypto/vaultCrypto";
 import { NoteTreeItem } from "./NoteTreeItem";
 import { TreeToolbar } from "./TreeToolbar";
 import { TreeFilterBox } from "./TreeFilterBox";
 import { RecentlyDeleted } from "./RecentlyDeleted";
+
+// dnd-kit's built-in sorting strategies (verticalListSortingStrategy etc.)
+// assume `items` only ever changes by moving the single dragged item to a
+// new slot, with every other item keeping its original relative order —
+// they compute each row's animation by comparing frozen pre-drag rects
+// against that assumption. Our drop target is hierarchy-aware (nesting,
+// indent/outdent, folder-only parents; see computeDragMove) and can't be
+// expressed as a simple flat-list swap, so feeding a hierarchy-computed
+// order through the built-in strategy produced a scrambled, incorrect
+// animation (tried twice — see git history). Instead, no row moves during
+// the drag; a drop-position indicator (rendered by NoteTreeItem, driven by
+// useDragPreviewStore below) shows exactly where it will land.
+const noSortingPreview: SortingStrategy = () => null;
 
 export function TreeView() {
   const notes = useDocumentStore((s) => s.doc?.notes);
@@ -98,23 +118,37 @@ export function TreeView() {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
 
+  function computeMove(activeId: string, overId: string, deltaX: number) {
+    const currentNotes = useDocumentStore.getState().doc?.notes;
+    if (!currentNotes) return null;
+    return computeDragMove(currentNotes, visible, activeId, overId, deltaX);
+  }
+
+  function handleDragMove(event: DragMoveEvent) {
+    const { active, over, delta } = event;
+    if (!over) {
+      useDragPreviewStore.getState().clear();
+      return;
+    }
+    const move = computeMove(String(active.id), String(over.id), delta.x);
+    if (move) useDragPreviewStore.getState().setPreview(String(active.id), move);
+    else useDragPreviewStore.getState().clear();
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    useDragPreviewStore.getState().clear();
     const { active, over, delta } = event;
     if (!over) return;
-    const currentNotes = useDocumentStore.getState().doc?.notes;
-    if (!currentNotes) return;
-    const move = computeDragMove(
-      currentNotes,
-      visible,
-      String(active.id),
-      String(over.id),
-      delta.x,
-    );
+    const move = computeMove(String(active.id), String(over.id), delta.x);
     if (move) {
       useDocumentStore
         .getState()
         .moveNote(String(active.id), move.newParentId, move.beforeId, move.afterId);
     }
+  }
+
+  function handleDragCancel() {
+    useDragPreviewStore.getState().clear();
   }
 
   return (
@@ -130,12 +164,11 @@ export function TreeView() {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
-            <SortableContext
-              items={visible.map((v) => v.id)}
-              strategy={verticalListSortingStrategy}
-            >
+            <SortableContext items={visible.map((v) => v.id)} strategy={noSortingPreview}>
               {filteredTree.map((node) => (
                 <NoteTreeItem key={node.id} node={node} depth={0} isFiltering={isFiltering} />
               ))}

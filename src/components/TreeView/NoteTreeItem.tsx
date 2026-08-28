@@ -6,6 +6,7 @@ import { useDocumentStore } from "../../document/documentStore";
 import { usePrefsStore } from "../../stores/usePrefsStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
 import { useVaultStore } from "../../stores/useVaultStore";
+import { useDragPreviewStore } from "../../stores/useDragPreviewStore";
 import { docKey } from "../../document/documentSource";
 import { findPreviousSibling, folderEncryptionState, type TreeNode } from "../../document/treeUtils";
 import {
@@ -93,11 +94,32 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
     transition,
     isDragging,
   } = useSortable({ id: node.id, disabled: isEditing || isFiltering });
-  const dragStyle = {
+  const dragStyle: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : undefined,
+    position: isDragging ? "relative" : undefined,
+    zIndex: isDragging ? 10 : undefined,
   };
+
+  // Where an in-progress drag would land relative to this row (see
+  // TreeView's drag handlers + useDragPreviewStore) — "below"/"above" draws
+  // a line at this row's edge; "inside" means this row (a folder with no
+  // other visible children) would adopt the dragged note as its first
+  // child. A plain string return keeps this row from re-rendering on every
+  // pointer move unless its own indicator actually changes.
+  const dropIndicator = useDragPreviewStore((s): "none" | "below" | "above" | "inside" => {
+    if (!s.move || s.activeId === node.id) return "none";
+    if (s.move.beforeId === node.id) return "below";
+    if (s.move.beforeId === null && s.move.afterId === node.id) return "above";
+    if (
+      s.move.newParentId === node.id &&
+      s.move.beforeId === null &&
+      s.move.afterId === null
+    ) {
+      return "inside";
+    }
+    return "none";
+  });
 
   useEffect(() => {
     if (pendingRenameId === node.id) {
@@ -251,11 +273,11 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
   }
 
   return (
-    <div className="tree-item" ref={setNodeRef} style={dragStyle}>
+    <div className={`tree-item${isDragging ? " tree-item--dragging" : ""}`} ref={setNodeRef} style={dragStyle}>
       <div
         {...attributes}
         {...listeners}
-        className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}`}
+        className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}${dropIndicator !== "none" ? ` tree-item__row--drop-${dropIndicator}` : ""}`}
         style={{ paddingLeft: 4 + depth * 14 }}
         tabIndex={0}
         role="treeitem"
