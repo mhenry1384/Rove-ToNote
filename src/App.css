@@ -528,9 +528,17 @@ body {
   border-color: var(--accent);
 }
 
-.note-menu__image-input {
-  width: 100%;
+.note-menu__image-url-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 0 0 4px;
+}
+
+.note-menu__image-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
   padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -538,6 +546,51 @@ body {
   color: var(--text);
   font-size: 0.85rem;
   box-sizing: border-box;
+}
+
+.note-menu__image-url-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.note-menu__image-url-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.note-menu__recent-urls {
+  max-height: 160px;
+  margin: 0 0 4px;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+}
+
+.note-menu__recent-url {
+  padding: 5px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.note-menu__recent-url:hover {
+  background: var(--bg-hover);
 }
 
 .note-menu__image-opacity {

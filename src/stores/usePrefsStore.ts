@@ -4,6 +4,8 @@ import {
   loadPrefs,
   savePrefs,
   withNoteExpanded,
+  withRecentBackgroundImageUrl,
+  withoutRecentBackgroundImageUrl,
   type Prefs,
 } from "../document/prefs";
 import type { DocumentSource } from "../document/documentSource";
@@ -19,10 +21,12 @@ interface PrefsState {
     noteId: string,
     expanded: boolean,
   ) => Promise<void>;
+  addRecentBackgroundImageUrl: (url: string) => Promise<void>;
+  removeRecentBackgroundImageUrl: (url: string) => Promise<void>;
 }
 
 export const usePrefsStore = create<PrefsState>((set, get) => ({
-  prefs: { lastOpenedSource: null, treeExpandState: {} },
+  prefs: { lastOpenedSource: null, treeExpandState: {}, recentBackgroundImageUrls: [] },
   isLoaded: false,
 
   load: async () => {
@@ -40,6 +44,18 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
 
   setExpanded: async (docKey, noteId, expanded) => {
     const next = withNoteExpanded(get().prefs, docKey, noteId, expanded);
+    set({ prefs: next });
+    await savePrefs(next);
+  },
+
+  addRecentBackgroundImageUrl: async (url) => {
+    const next = withRecentBackgroundImageUrl(get().prefs, url);
+    set({ prefs: next });
+    await savePrefs(next);
+  },
+
+  removeRecentBackgroundImageUrl: async (url) => {
+    const next = withoutRecentBackgroundImageUrl(get().prefs, url);
     set({ prefs: next });
     await savePrefs(next);
   },

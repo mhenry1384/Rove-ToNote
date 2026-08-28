@@ -12,10 +12,14 @@ export interface Prefs {
   windowBounds?: { width: number; height: number; x: number; y: number };
   /** docKey(source) -> noteId -> expanded */
   treeExpandState: Record<string, Record<string, boolean>>;
+  /** Most-recently-used first, capped at MAX_RECENT_BACKGROUND_IMAGE_URLS. */
+  recentBackgroundImageUrls: string[];
 }
 
+export const MAX_RECENT_BACKGROUND_IMAGE_URLS = 15;
+
 function defaultPrefs(): Prefs {
-  return { lastOpenedSource: null, treeExpandState: {} };
+  return { lastOpenedSource: null, treeExpandState: {}, recentBackgroundImageUrls: [] };
 }
 
 let prefsFilePathPromise: Promise<string> | null = null;
@@ -82,5 +86,22 @@ export function withNoteExpanded(
         [noteId]: expanded,
       },
     },
+  };
+}
+
+/** Moves `url` to the front of the recent-background-image list (adding it
+ * if new), deduped, capped at MAX_RECENT_BACKGROUND_IMAGE_URLS. */
+export function withRecentBackgroundImageUrl(prefs: Prefs, url: string): Prefs {
+  const deduped = prefs.recentBackgroundImageUrls.filter((u) => u !== url);
+  return {
+    ...prefs,
+    recentBackgroundImageUrls: [url, ...deduped].slice(0, MAX_RECENT_BACKGROUND_IMAGE_URLS),
+  };
+}
+
+export function withoutRecentBackgroundImageUrl(prefs: Prefs, url: string): Prefs {
+  return {
+    ...prefs,
+    recentBackgroundImageUrls: prefs.recentBackgroundImageUrls.filter((u) => u !== url),
   };
 }

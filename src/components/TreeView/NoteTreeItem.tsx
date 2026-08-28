@@ -39,6 +39,7 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
   const storedExpanded = usePrefsStore((s) =>
     key ? s.isExpanded(key, node.id) : true,
   );
+  const recentBackgroundImageUrls = usePrefsStore((s) => s.prefs.recentBackgroundImageUrls);
   const isExpanded = isFiltering || storedExpanded;
 
   const isSelected = selectedNoteId === node.id;
@@ -52,9 +53,13 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [imageUrlDraft, setImageUrlDraft] = useState(node.backgroundImageUrl ?? "");
+  const [isRecentUrlsOpen, setIsRecentUrlsOpen] = useState(false);
+  const [hoveredRecentUrl, setHoveredRecentUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const recentUrlsRef = useRef<HTMLDivElement>(null);
+  const recentUrlsToggleRef = useRef<HTMLButtonElement>(null);
 
   const isUnlocked = useVaultStore((s) => s.isUnlocked);
   const vaultKey = useVaultStore((s) => s.key);
@@ -186,8 +191,38 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
   }
 
   useEffect(() => {
-    if (isMenuOpen) setImageUrlDraft(node.backgroundImageUrl ?? "");
+    if (isMenuOpen) {
+      setImageUrlDraft(node.backgroundImageUrl ?? "");
+    } else {
+      setIsRecentUrlsOpen(false);
+      setHoveredRecentUrl(null);
+    }
   }, [isMenuOpen, node.backgroundImageUrl]);
+
+  useEffect(() => {
+    if (!isRecentUrlsOpen) return;
+    function handlePointerDown(e: MouseEvent) {
+      if (recentUrlsRef.current?.contains(e.target as Node)) return;
+      if (recentUrlsToggleRef.current?.contains(e.target as Node)) return;
+      setIsRecentUrlsOpen(false);
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setIsRecentUrlsOpen(false);
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && hoveredRecentUrl) {
+        e.preventDefault();
+        void usePrefsStore.getState().removeRecentBackgroundImageUrl(hoveredRecentUrl);
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isRecentUrlsOpen, hoveredRecentUrl]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -239,6 +274,21 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
     const trimmed = imageUrlDraft.trim();
     if (trimmed === (node.backgroundImageUrl ?? "")) return;
     useDocumentStore.getState().setNoteBackgroundImage(node.id, trimmed || null);
+    if (trimmed) {
+      // Only remember URLs that actually resolve to an image — a typo or a
+      // dead link shouldn't clutter the recent-URLs list.
+      const probe = new Image();
+      probe.onload = () => {
+        void usePrefsStore.getState().addRecentBackgroundImageUrl(trimmed);
+      };
+      probe.src = trimmed;
+    }
+  }
+
+  function handlePickRecentUrl(url: string) {
+    setImageUrlDraft(url);
+    useDocumentStore.getState().setNoteBackgroundImage(node.id, url);
+    setIsRecentUrlsOpen(false);
   }
 
   function handleOpacityChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -433,18 +483,49 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
           </div>
           <div className="note-menu__divider" />
           <div className="note-menu__label">Background image</div>
-          <input
-            type="url"
-            className="note-menu__image-input"
-            placeholder="Image URL"
-            value={imageUrlDraft}
-            onChange={(e) => setImageUrlDraft(e.target.value)}
-            onBlur={commitImageUrl}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              else if (e.key === "Escape") setImageUrlDraft(node.backgroundImageUrl ?? "");
-            }}
-          />
+          <div className="note-menu__image-url-row">
+            <input
+              type="url"
+              className="note-menu__image-input"
+              placeholder="Image URL"
+              value={imageUrlDraft}
+              onChange={(e) => setImageUrlDraft(e.target.value)}
+              onBlur={commitImageUrl}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                else if (e.key === "Escape") setImageUrlDraft(node.backgroundImageUrl ?? "");
+              }}
+            />
+            {recentBackgroundImageUrls.length > 0 && (
+              <button
+                type="button"
+                ref={recentUrlsToggleRef}
+                className="note-menu__image-url-toggle"
+                title="Recent image URLs"
+                onClick={() => setIsRecentUrlsOpen((open) => !open)}
+              >
+                <ChevronDown size={14} />
+              </button>
+            )}
+          </div>
+          {isRecentUrlsOpen && (
+            <div className="note-menu__recent-urls" ref={recentUrlsRef}>
+              {recentBackgroundImageUrls.map((url) => (
+                <div
+                  key={url}
+                  className="note-menu__recent-url"
+                  onMouseEnter={() => setHoveredRecentUrl(url)}
+                  onMouseLeave={() =>
+                    setHoveredRecentUrl((cur) => (cur === url ? null : cur))
+                  }
+                  onClick={() => handlePickRecentUrl(url)}
+                  title={`${url}\n(hover and press Delete to remove)`}
+                >
+                  {url}
+                </div>
+              ))}
+            </div>
+          )}
           {node.backgroundImageUrl && (
             <div className="note-menu__image-opacity">
               <input
