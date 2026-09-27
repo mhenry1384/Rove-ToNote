@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Plus, Trash2, Undo2 } from "lucide-react";
 import {
   parsePasswordGrid,
@@ -30,6 +30,7 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
   // straight through — otherwise the grid (always sorted by name) would
   // reorder out from under the row on every keystroke.
   const [nameDraft, setNameDraft] = useState<{ id: string; value: string } | null>(null);
+  const justFocusedPassword = useRef(false);
 
   const deletedCount = usePasswordGridUndoStore(
     (s) => s.deletedByNote[noteId]?.length ?? 0,
@@ -151,6 +152,25 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
                     className="password-grid__cell-input"
                     value={entry.password}
                     onChange={(e) => updateEntry(entry.id, { password: e.target.value })}
+                    onFocus={(e) => {
+                      e.target.select();
+                      if (e.target.value) {
+                        navigator.clipboard.writeText(e.target.value).catch((err) => {
+                          console.error("Failed to copy password to clipboard", err);
+                        });
+                      }
+                    }}
+                    onMouseDown={(e) => {
+                      justFocusedPassword.current = document.activeElement !== e.currentTarget;
+                    }}
+                    onMouseUp={(e) => {
+                      // The mouseup that ends a focusing click would otherwise
+                      // collapse the selection made in onFocus to a caret.
+                      if (justFocusedPassword.current) {
+                        e.preventDefault();
+                        justFocusedPassword.current = false;
+                      }
+                    }}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </td>
