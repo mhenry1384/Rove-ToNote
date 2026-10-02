@@ -103,7 +103,7 @@ function App() {
         if (useDocumentStore.getState().driveConflict) {
           await message(
             "This document has unresolved changes from Google Drive. Resolve the conflict banner before closing.",
-            { title: "ToNote", kind: "warning" },
+            { title: "Rove ToNote", kind: "warning" },
           );
           return;
         }

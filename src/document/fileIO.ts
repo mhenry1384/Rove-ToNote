@@ -18,13 +18,13 @@ export function parseDocument(raw: string): ToNoteDocument {
     !("notes" in parsed) ||
     !Array.isArray((parsed as { notes: unknown }).notes)
   ) {
-    throw new DocumentParseError("File is not a valid ToNote document.");
+    throw new DocumentParseError("File is not a valid Rove ToNote document.");
   }
 
   const doc = parsed as ToNoteDocument;
   if (doc.formatVersion !== 1) {
     throw new DocumentParseError(
-      `Unsupported ToNote document format version: ${String(doc.formatVersion)}`,
+      `Unsupported Rove ToNote document format version: ${String(doc.formatVersion)}`,
     );
   }
 

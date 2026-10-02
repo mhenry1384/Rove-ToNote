@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ToNote",
+  "productName": "Rove ToNote",
   "version": "0.1.0",
   "identifier": "com.mhenr.tonote",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ToNote",
+        "title": "Rove ToNote",
         "width": 1100,
         "height": 750
       }

@@ -115,7 +115,7 @@ export async function performSignIn(): Promise<{ accountEmail: string }> {
   const tokens = await exchangeCodeForTokens(callback.code, verifier, redirectUri);
   if (!tokens.refresh_token) {
     throw new DriveAuthError(
-      "Google didn't return a refresh token. Try signing out of ToNote's Drive access at " +
+      "Google didn't return a refresh token. Try signing out of Rove ToNote's Drive access at " +
         "myaccount.google.com/permissions and signing in again.",
     );
   }

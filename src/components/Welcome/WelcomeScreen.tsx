@@ -11,7 +11,7 @@ export function WelcomeScreen({ onNew, onOpen, onOpenFromDrive, loadError }: Wel
   return (
     <div className="welcome-screen">
       <div className="welcome-screen__card">
-        <h1>ToNote</h1>
+        <h1>Rove ToNote</h1>
         <p className="welcome-screen__subtitle">
           Markdown notes and to-do lists, stored in a single file you control.
         </p>

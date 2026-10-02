@@ -65,7 +65,7 @@ pub async fn drive_oauth_await_code(
     let request_line = request.lines().next().unwrap_or("");
     let params = parse_query_params(&request_line_query(request_line));
 
-    let body = "<html><body><p>You can close this tab and return to ToNote.</p></body></html>";
+    let body = "<html><body><p>You can close this tab and return to Rove ToNote.</p></body></html>";
     let response = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         body.len(),

@@ -42,7 +42,7 @@ export function DriveFilePicker() {
         {error && <p className="vault-modal__error">{error}</p>}
         {!isLoading && !error && files.length === 0 && (
           <p className="vault-modal__hint">
-            No ToNote documents found in Google Drive yet — use "Save a Copy to
+            No Rove ToNote documents found in Google Drive yet — use "Save a Copy to
             Google Drive" to create one.
           </p>
         )}

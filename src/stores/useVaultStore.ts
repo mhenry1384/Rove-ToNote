@@ -10,7 +10,7 @@ import {
 
 /** Auto-relock after this much inactivity, regardless of which note (if
  * any) is open. */
-const IDLE_LOCK_MS = 15 * 60 * 1000;
+const IDLE_LOCK_MS = 60 * 60 * 1000;
 
 interface VaultPrompt {
   mode: "create" | "unlock";

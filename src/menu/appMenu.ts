@@ -7,7 +7,7 @@ import { useDriveStore } from "../stores/useDriveStore";
 import { useSelectionStore } from "../stores/useSelectionStore";
 import { useBackupStore } from "../stores/useBackupStore";
 
-const FILE_FILTERS = [{ name: "ToNote Document", extensions: ["tonote"] }];
+const FILE_FILTERS = [{ name: "Rove ToNote Document", extensions: ["tonote"] }];
 
 function withExtension(path: string): string {
   return path.toLowerCase().endsWith(".tonote") ? path : `${path}.tonote`;
@@ -20,13 +20,13 @@ async function flushIfDirty(): Promise<void> {
 
 async function reportError(context: string, err: unknown): Promise<void> {
   const detail = err instanceof Error ? err.message : String(err);
-  await message(`${context}\n\n${detail}`, { title: "ToNote", kind: "error" });
+  await message(`${context}\n\n${detail}`, { title: "Rove ToNote", kind: "error" });
 }
 
 export async function handleNew(): Promise<void> {
   await flushIfDirty();
   const path = await save({
-    title: "New ToNote Document",
+    title: "New Rove ToNote Document",
     filters: FILE_FILTERS,
   });
   if (!path) return;
@@ -42,7 +42,7 @@ export async function handleNew(): Promise<void> {
 export async function handleOpen(): Promise<void> {
   await flushIfDirty();
   const picked = await open({
-    title: "Open ToNote Document",
+    title: "Open Rove ToNote Document",
     filters: FILE_FILTERS,
     multiple: false,
   });
@@ -67,7 +67,7 @@ async function handleSaveAs(): Promise<void> {
   const { doc, source } = useDocumentStore.getState();
   if (!doc) return;
   const path = await save({
-    title: "Save ToNote Document As",
+    title: "Save Rove ToNote Document As",
     filters: FILE_FILTERS,
     defaultPath: source?.kind === "local" ? source.path : undefined,
   });
