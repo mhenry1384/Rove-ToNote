@@ -876,6 +876,20 @@ body {
   line-height: 1.35;
 }
 
+/* Crepe sizes the list bullet/number/checkbox box at a fixed 32px to match
+   its default paragraph height (24px line + 8px padding). We tighten
+   paragraphs above, so shrink the label box to the same height or the bullet
+   centers below the first line of text. */
+.markdown-editor .milkdown .milkdown-list-item-block li .label-wrapper,
+.markdown-editor .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  height: calc(1.35em + 2px);
+}
+
+.markdown-editor .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  padding: 1px 0;
+  line-height: 1.35;
+}
+
 .markdown-editor .milkdown .ProseMirror h1 {
   font-size: 1.75em;
   margin-top: 8px;
