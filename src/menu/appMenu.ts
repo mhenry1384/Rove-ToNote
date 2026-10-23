@@ -239,6 +239,8 @@ export async function installAppMenu(): Promise<void> {
     action: () => handleUndoDelete(),
   });
 
+  const isMac = /Mac/.test(navigator.userAgent);
+
   const fileMenu = await Submenu.new({
     text: "File",
     items: [
@@ -275,18 +277,40 @@ export async function installAppMenu(): Promise<void> {
       driveAuthMenuItem,
       await PredefinedMenuItem.new({ item: "Separator" }),
       viewBackupsMenuItem,
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      await MenuItem.new({
-        id: "file-exit",
-        text: "Exit",
-        action: () => void handleExit(),
-      }),
+      // On macOS, quitting lives in the app menu instead (see appMenu below).
+      ...(isMac
+        ? []
+        : [
+            await PredefinedMenuItem.new({ item: "Separator" }),
+            await MenuItem.new({
+              id: "file-exit",
+              text: "Exit",
+              action: () => void handleExit(),
+            }),
+          ]),
     ],
   });
+
+  // On macOS, the webview's text-editing shortcuts (Cmd+C/V/X/A/Z) only work
+  // when the app menu contains the matching predefined items, so add them
+  // there. Windows handles these natively without menu items.
+  const macEditItems = isMac
+    ? [
+        await PredefinedMenuItem.new({ item: "Undo" }),
+        await PredefinedMenuItem.new({ item: "Redo" }),
+        await PredefinedMenuItem.new({ item: "Separator" }),
+        await PredefinedMenuItem.new({ item: "Cut" }),
+        await PredefinedMenuItem.new({ item: "Copy" }),
+        await PredefinedMenuItem.new({ item: "Paste" }),
+        await PredefinedMenuItem.new({ item: "SelectAll" }),
+        await PredefinedMenuItem.new({ item: "Separator" }),
+      ]
+    : [];
 
   const editMenu = await Submenu.new({
     text: "Edit",
     items: [
+      ...macEditItems,
       undoMenuItem,
       await PredefinedMenuItem.new({ item: "Separator" }),
       await MenuItem.new({
@@ -297,7 +321,35 @@ export async function installAppMenu(): Promise<void> {
     ],
   });
 
-  const menu = await Menu.new({ items: [fileMenu, editMenu] });
+  // macOS always titles the first submenu with the app's name, so give it
+  // the standard app-menu contents rather than letting File land there.
+  // Quit closes the window (rather than using the predefined Quit item) so
+  // it goes through App.tsx's onCloseRequested save/backup/conflict logic.
+  const appMenu = isMac
+    ? await Submenu.new({
+        text: "Rove ToNote",
+        items: [
+          await PredefinedMenuItem.new({ item: { About: null } }),
+          await PredefinedMenuItem.new({ item: "Separator" }),
+          await PredefinedMenuItem.new({ item: "Services" }),
+          await PredefinedMenuItem.new({ item: "Separator" }),
+          await PredefinedMenuItem.new({ item: "Hide" }),
+          await PredefinedMenuItem.new({ item: "HideOthers" }),
+          await PredefinedMenuItem.new({ item: "ShowAll" }),
+          await PredefinedMenuItem.new({ item: "Separator" }),
+          await MenuItem.new({
+            id: "app-quit",
+            text: "Quit Rove ToNote",
+            accelerator: "Cmd+Q",
+            action: () => void getCurrentWindow().close(),
+          }),
+        ],
+      })
+    : null;
+
+  const menu = await Menu.new({
+    items: appMenu ? [appMenu, fileMenu, editMenu] : [fileMenu, editMenu],
+  });
   await menu.setAsAppMenu();
 
   watchDirtyState();
