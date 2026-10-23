@@ -1074,13 +1074,15 @@ body {
 }
 
 .todo-item__row {
+  --todo-line-height: calc(0.95rem * 1.35 + 6px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   padding: 6px 2px;
 }
 
 .todo-item__handle {
+  height: var(--todo-line-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1099,6 +1101,8 @@ body {
 .todo-item__checkbox {
   width: 15px;
   height: 15px;
+  margin-top: calc((var(--todo-line-height) - 15px) / 2);
+  margin-bottom: 0;
   flex-shrink: 0;
   accent-color: var(--accent);
   cursor: pointer;
@@ -1114,6 +1118,11 @@ body {
   color: var(--text);
   font-family: inherit;
   font-size: 0.95rem;
+  line-height: 1.35;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  overflow-wrap: anywhere;
 }
 
 .todo-item--checked .todo-item__text {
@@ -1123,6 +1132,7 @@ body {
 
 .todo-item__priority,
 .todo-item__delete {
+  height: var(--todo-line-height);
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -1142,6 +1152,7 @@ body {
 }
 
 .todo-item__notes-indicator {
+  height: var(--todo-line-height);
   display: inline-flex;
   align-items: center;
   gap: 3px;

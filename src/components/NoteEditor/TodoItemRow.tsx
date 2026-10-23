@@ -84,7 +84,9 @@ export function TodoItemRow({
     onAddNote();
   }
 
-  function handleContainerFocus() {
+  function handleContainerFocus(e: React.FocusEvent<HTMLDivElement>) {
+    // Checking the box removes the item, so don't flash the notes panel open first.
+    if ((e.target as HTMLElement).classList.contains("todo-item__checkbox")) return;
     setIsFocused(true);
   }
 
@@ -130,11 +132,17 @@ export function TodoItemRow({
           checked={item.checked}
           onChange={onToggleChecked}
         />
-        <input
-          type="text"
+        <textarea
           className="todo-item__text"
+          rows={1}
           value={item.text}
-          onChange={(e) => onTextChange(e.target.value)}
+          onChange={(e) => onTextChange(e.target.value.replace(/[\r\n]+/g, " "))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
           placeholder="Task"
         />
         <button

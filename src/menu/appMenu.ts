@@ -6,6 +6,8 @@ import { usePrefsStore } from "../stores/usePrefsStore";
 import { useDriveStore } from "../stores/useDriveStore";
 import { useSelectionStore } from "../stores/useSelectionStore";
 import { useBackupStore } from "../stores/useBackupStore";
+import { getActiveMarkdownView } from "../components/NoteEditor/activeMarkdownEditor";
+import { sortLines } from "../components/NoteEditor/sortLines";
 
 const FILE_FILTERS = [{ name: "Rove ToNote Document", extensions: ["tonote"] }];
 
@@ -130,6 +132,15 @@ function handleUndoDelete(): void {
   if (!entry) return;
   useDocumentStore.getState().restoreNote(entry.rootId);
   useSelectionStore.getState().select(entry.rootId);
+}
+
+/** Sorts the open markdown note's lines alphabetically (see sortLines for
+ * which lines). No-op when no markdown note is open. */
+function handleSortLines(): void {
+  const view = getActiveMarkdownView();
+  if (!view) return;
+  sortLines(view);
+  view.focus();
 }
 
 function handleViewBackups(): void {
@@ -275,7 +286,15 @@ export async function installAppMenu(): Promise<void> {
 
   const editMenu = await Submenu.new({
     text: "Edit",
-    items: [undoMenuItem],
+    items: [
+      undoMenuItem,
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      await MenuItem.new({
+        id: "edit-sort-lines",
+        text: "Sort Lines",
+        action: () => handleSortLines(),
+      }),
+    ],
   });
 
   const menu = await Menu.new({ items: [fileMenu, editMenu] });

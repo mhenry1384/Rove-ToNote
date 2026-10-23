@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { Crepe } from "@milkdown/crepe";
-import { commandsCtx, editorViewOptionsCtx } from "@milkdown/kit/core";
+import { commandsCtx, editorViewCtx, editorViewOptionsCtx } from "@milkdown/kit/core";
+import type { EditorView } from "@milkdown/kit/prose/view";
+import { getActiveMarkdownView, setActiveMarkdownView } from "./activeMarkdownEditor";
 import { wrapInHeadingCommand } from "@milkdown/kit/preset/commonmark";
 import { Fragment, Slice } from "@milkdown/kit/prose/model";
 import { $shortcut } from "@milkdown/kit/utils";
@@ -107,10 +109,20 @@ export function MarkdownEditor({
           slice.content.textBetween(0, slice.content.size, "\n", "\n"),
       }));
     });
-    const createPromise = crepe.create();
+    let view: EditorView | null = null;
+    let disposed = false;
+    const createPromise = crepe.create().then(() => {
+      if (disposed) return;
+      view = crepe.editor.ctx.get(editorViewCtx);
+      setActiveMarkdownView(view);
+    });
 
     return () => {
-      void createPromise.then(() => crepe.destroy());
+      disposed = true;
+      void createPromise.then(() => {
+        if (view && getActiveMarkdownView() === view) setActiveMarkdownView(null);
+        crepe.destroy();
+      });
     };
     // Only recreate the editor when switching notes — `defaultValue` is
     // intentionally read just once, at mount, since it changes on every
