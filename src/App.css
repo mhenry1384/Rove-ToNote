@@ -220,8 +220,14 @@ body {
 }
 
 .app-titlebar__file {
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-titlebar__version {
+  flex-shrink: 0;
   white-space: nowrap;
 }
 

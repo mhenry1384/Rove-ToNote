@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Flag, GripVertical, MessageSquare, Trash2 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -66,6 +66,26 @@ export function TodoItemRow({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [priorityMenuOpen]);
+
+  // Once the menu renders, nudge it back inside the viewport before paint.
+  useLayoutEffect(() => {
+    if (!priorityMenuOpen || !priorityMenuPos) return;
+    const menuRect = priorityMenuRef.current?.getBoundingClientRect();
+    const buttonRect = priorityButtonRef.current?.getBoundingClientRect();
+    if (!menuRect || !buttonRect) return;
+    const margin = 8;
+    let { top, left } = priorityMenuPos;
+    if (left + menuRect.width > window.innerWidth - margin) {
+      left = Math.max(margin, window.innerWidth - margin - menuRect.width);
+    }
+    if (top + menuRect.height > window.innerHeight - margin) {
+      const above = buttonRect.top - 4 - menuRect.height;
+      top = above >= margin ? above : Math.max(margin, window.innerHeight - margin - menuRect.height);
+    }
+    if (top !== priorityMenuPos.top || left !== priorityMenuPos.left) {
+      setPriorityMenuPos({ top, left });
+    }
+  }, [priorityMenuOpen, priorityMenuPos]);
 
   function handlePriorityClick() {
     const rect = priorityButtonRef.current?.getBoundingClientRect();

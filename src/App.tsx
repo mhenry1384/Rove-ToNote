@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message } from "@tauri-apps/plugin-dialog";
 import { Cloud, CloudOff, KeyRound, Lock, RefreshCw, Unlock } from "lucide-react";
+import { version as appVersion } from "../package.json";
 import "./App.css";
 import { useDocumentStore } from "./document/documentStore";
 import { usePrefsStore } from "./stores/usePrefsStore";
@@ -188,6 +189,7 @@ function App() {
             )}
           </button>
         )}
+        <span className="app-titlebar__version">v{appVersion}</span>
         {doc.vault && (
           <button
             type="button"
