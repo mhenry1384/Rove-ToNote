@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { useLayoutEffect, useRef } from "react";
+import { Trash2 } from "lucide-react";
 import type { TodoNote } from "../../document/todoMarkdown";
 
 interface TodoItemNotesProps {
@@ -35,6 +35,8 @@ export function TodoItemNotes({
         className="todo-item-notes__add"
         disabled={!canAddNote}
         title={canAddNote ? undefined : "Finish the blank note before adding another"}
+        // Keep focus inside the item so the notes panel doesn't collapse mid-click.
+        onMouseDown={(e) => e.preventDefault()}
         onClick={onAddNote}
       >
         + Add note
@@ -56,11 +58,9 @@ function TodoNoteRow({
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (autoFocus) textareaRef.current?.focus();
-    // Only focus once, when this row is first mounted for a newly added note.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [autoFocus]);
 
   return (
     <div className="todo-item-notes__note">
@@ -77,7 +77,7 @@ function TodoNoteRow({
         title="Delete note"
         onClick={onDelete}
       >
-        <X size={12} />
+        <Trash2 size={12} />
       </button>
     </div>
   );

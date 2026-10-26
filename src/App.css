@@ -968,7 +968,23 @@ body {
 .todo-editor__header {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 10px;
+}
+
+.todo-editor__undo {
+  padding: 2px 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.todo-editor__undo:hover {
+  color: var(--text);
 }
 
 .todo-editor__sort-toggle {
@@ -1164,8 +1180,15 @@ body {
   gap: 3px;
   flex-shrink: 0;
   padding: 3px 5px;
+  border: none;
+  background: transparent;
   color: var(--text-muted);
   font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.todo-item__notes-indicator:hover {
+  color: var(--text);
 }
 
 .todo-item__delete {
@@ -1214,11 +1237,11 @@ body {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  visibility: hidden;
 }
 
-.todo-item-notes__note:hover .todo-item-notes__delete {
-  visibility: visible;
+.todo-item-notes__delete:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .todo-item-notes__add {

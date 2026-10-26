@@ -16,6 +16,7 @@ interface TodoItemRowProps {
   onAddNote: () => void;
   onNoteTextChange: (noteId: string, text: string) => void;
   onNoteDelete: (noteId: string) => void;
+  onDiscardBlankNotes: () => void;
 }
 
 export function TodoItemRow({
@@ -28,12 +29,14 @@ export function TodoItemRow({
   onAddNote,
   onNoteTextChange,
   onNoteDelete,
+  onDiscardBlankNotes,
 }: TodoItemRowProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
   const [pendingFocusNoteId, setPendingFocusNoteId] = useState<string | null>(null);
   const addNoteRequestedRef = useRef(false);
   const priorityButtonRef = useRef<HTMLButtonElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const priorityMenuRef = useRef<HTMLDivElement>(null);
   const [priorityMenuPos, setPriorityMenuPos] = useState<{ top: number; left: number } | null>(
     null,
@@ -113,10 +116,13 @@ export function TodoItemRow({
   function handleContainerBlur(e: React.FocusEvent<HTMLDivElement>) {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
       setIsFocused(false);
+      if (hasBlankNote) onDiscardBlankNotes();
     }
   }
 
-  useEffect(() => {
+  // Focus the new note in the same commit it mounts, before the (now disabled)
+  // Add note button can drop focus and collapse the notes panel.
+  useLayoutEffect(() => {
     if (addNoteRequestedRef.current && item.notes.length > 0) {
       addNoteRequestedRef.current = false;
       setPendingFocusNoteId(item.notes[item.notes.length - 1].id);
@@ -153,6 +159,7 @@ export function TodoItemRow({
           onChange={onToggleChecked}
         />
         <textarea
+          ref={textRef}
           className="todo-item__text"
           rows={1}
           value={item.text}
@@ -166,6 +173,29 @@ export function TodoItemRow({
           placeholder="Task"
         />
         <button
+          type="button"
+          className="todo-item__delete"
+          title="Delete task"
+          onClick={onDelete}
+        >
+          <Trash2 size={14} />
+        </button>
+        {item.notes.length > 0 && (
+          <button
+            type="button"
+            className="todo-item__notes-indicator"
+            title={`${item.notes.length} note${item.notes.length === 1 ? "" : "s"}`}
+            tabIndex={-1}
+            // Activate the item (which reveals its notes) by focusing its text.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => textRef.current?.focus()}
+          >
+            <MessageSquare size={14} />
+            <span>{item.notes.length}</span>
+          </button>
+        )}
+        {/* Always last, so every row's flag lines up at the right edge. */}
+        <button
           ref={priorityButtonRef}
           type="button"
           className="todo-item__priority"
@@ -174,23 +204,6 @@ export function TodoItemRow({
           onClick={handlePriorityClick}
         >
           <Flag size={14} fill={item.priority === "none" ? "none" : priorityColor} />
-        </button>
-        {item.notes.length > 0 && (
-          <span
-            className="todo-item__notes-indicator"
-            title={`${item.notes.length} note${item.notes.length === 1 ? "" : "s"}`}
-          >
-            <MessageSquare size={14} />
-            <span>{item.notes.length}</span>
-          </span>
-        )}
-        <button
-          type="button"
-          className="todo-item__delete"
-          title="Delete task"
-          onClick={onDelete}
-        >
-          <Trash2 size={14} />
         </button>
       </div>
       {priorityMenuOpen && priorityMenuPos && (

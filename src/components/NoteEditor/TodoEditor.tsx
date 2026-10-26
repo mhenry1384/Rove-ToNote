@@ -10,6 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import {
+  isNonBlankNote,
   parseTodoMarkdown,
   pruneCompletedItems,
   serializeTodoMarkdown,
@@ -18,13 +19,27 @@ import {
   type SortMode,
   type TodoDoc,
   type TodoItem,
+  type TodoNote,
 } from "../../document/todoMarkdown";
 import { TodoItemRow } from "./TodoItemRow";
 
 interface TodoEditorProps {
+  noteId: string;
   content: string;
   onChange: (content: string) => void;
 }
+
+/** A user deletion that the Undo link can reverse, with enough position info
+ * to put the deleted thing back where it was. */
+type Deletion =
+  | { kind: "item"; item: TodoItem; index: number }
+  | { kind: "note"; itemId: string; note: TodoNote; index: number };
+
+const MAX_UNDO = 20;
+
+/** Per-list undo history, kept in memory only so it survives switching
+ * between lists (which remounts the editor) but not an app restart. */
+const undoStacksByNoteId = new Map<string, Deletion[]>();
 
 const SORT_MODES: { mode: SortMode; label: string }[] = [
   { mode: "manual", label: "Manual" },
@@ -32,12 +47,19 @@ const SORT_MODES: { mode: SortMode; label: string }[] = [
   { mode: "alphabetical", label: "A–Z" },
 ];
 
-export function TodoEditor({ content, onChange }: TodoEditorProps) {
+export function TodoEditor({ noteId, content, onChange }: TodoEditorProps) {
   const [doc, setDoc] = useState<TodoDoc>(() => parseTodoMarkdown(content));
   const [draftText, setDraftText] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
+  const [undoStack, setUndoStack] = useState<Deletion[]>(
+    () => undoStacksByNoteId.get(noteId) ?? [],
+  );
+
+  useEffect(() => {
+    undoStacksByNoteId.set(noteId, undoStack);
+  }, [noteId, undoStack]);
 
   useEffect(() => {
     if (!pendingScrollId) return;
@@ -69,6 +91,48 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
         : item,
     );
     updateItems(pruneCompletedItems(next));
+  }
+
+  function pushUndo(deletion: Deletion) {
+    setUndoStack((stack) => [...stack, deletion].slice(-MAX_UNDO));
+  }
+
+  function handleDeleteItem(itemId: string) {
+    const index = doc.items.findIndex((i) => i.id === itemId);
+    if (index === -1) return;
+    pushUndo({ kind: "item", item: doc.items[index], index });
+    updateItems(doc.items.filter((i) => i.id !== itemId));
+  }
+
+  function handleDeleteNote(itemId: string, noteId: string) {
+    const item = doc.items.find((i) => i.id === itemId);
+    const index = item?.notes.findIndex((n) => n.id === noteId) ?? -1;
+    if (!item || index === -1) return;
+    // Blank notes aren't worth an undo entry.
+    if (isNonBlankNote(item.notes[index])) {
+      pushUndo({ kind: "note", itemId, note: item.notes[index], index });
+    }
+    mapItem(itemId, (i) => ({ ...i, notes: i.notes.filter((n) => n.id !== noteId) }));
+  }
+
+  function handleUndo() {
+    const deletion = undoStack[undoStack.length - 1];
+    if (!deletion) return;
+    setUndoStack((stack) => stack.slice(0, -1));
+    if (deletion.kind === "item") {
+      const items = [...doc.items];
+      items.splice(Math.min(deletion.index, items.length), 0, deletion.item);
+      updateItems(items);
+      setPendingScrollId(deletion.item.id);
+    } else {
+      // If the note's item has since been deleted too, there's nowhere to put it back.
+      mapItem(deletion.itemId, (i) => {
+        const notes = [...i.notes];
+        notes.splice(Math.min(deletion.index, notes.length), 0, deletion.note);
+        return { ...i, notes };
+      });
+      setPendingScrollId(deletion.itemId);
+    }
   }
 
   function handleAddItem() {
@@ -117,7 +181,7 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
         onPriorityChange={(priority: Priority) =>
           mapItem(item.id, (i) => ({ ...i, priority }))
         }
-        onDelete={() => updateItems(doc.items.filter((i) => i.id !== item.id))}
+        onDelete={() => handleDeleteItem(item.id)}
         onAddNote={() =>
           mapItem(item.id, (i) => ({
             ...i,
@@ -130,11 +194,9 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
             notes: i.notes.map((n) => (n.id === noteId ? { ...n, text } : n)),
           }))
         }
-        onNoteDelete={(noteId) =>
-          mapItem(item.id, (i) => ({
-            ...i,
-            notes: i.notes.filter((n) => n.id !== noteId),
-          }))
+        onNoteDelete={(noteId) => handleDeleteNote(item.id, noteId)}
+        onDiscardBlankNotes={() =>
+          mapItem(item.id, (i) => ({ ...i, notes: i.notes.filter(isNonBlankNote) }))
         }
       />
     );
@@ -143,6 +205,20 @@ export function TodoEditor({ content, onChange }: TodoEditorProps) {
   return (
     <div className="todo-editor">
       <div className="todo-editor__header">
+        {undoStack.length > 0 && (
+          <button
+            type="button"
+            className="todo-editor__undo"
+            title={
+              undoStack[undoStack.length - 1].kind === "item"
+                ? "Restore the last deleted task"
+                : "Restore the last deleted note"
+            }
+            onClick={handleUndo}
+          >
+            Undo
+          </button>
+        )}
         <div className="todo-editor__sort-toggle">
           {SORT_MODES.map(({ mode, label }) => (
             <button

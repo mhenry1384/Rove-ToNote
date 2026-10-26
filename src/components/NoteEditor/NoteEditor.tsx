@@ -145,7 +145,7 @@ export function NoteEditor() {
           onChange={handleChange}
         />
       ) : note.type === "todo" ? (
-        <TodoEditor content={content} onChange={handleChange} />
+        <TodoEditor noteId={note.id} content={content} onChange={handleChange} />
       ) : note.type === "password-grid" ? (
         <PasswordGridEditor noteId={note.id} content={content} onChange={handleChange} />
       ) : (

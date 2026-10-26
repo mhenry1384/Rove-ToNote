@@ -41,6 +41,10 @@ const ITEM_RE =
 const NOTE_RE = /^ {2}- <!--\s*tonote:note id="([^"]+)"\s*-->\s?(.*)$/;
 const NOTE_CONTINUATION_RE = /^ {4,}(.*)$/;
 
+export function isNonBlankNote(note: TodoNote): boolean {
+  return note.text.trim().length > 0;
+}
+
 export function createEmptyTodoDoc(): TodoDoc {
   return { sortMode: "manual", items: [] };
 }
@@ -95,6 +99,11 @@ export function parseTodoMarkdown(content: string): TodoDoc {
     // comment) are not part of the grammar's payload — skip them.
   }
 
+  // Blank notes are never meaningful; drop any that older builds saved.
+  for (const item of items) {
+    item.notes = item.notes.filter(isNonBlankNote);
+  }
+
   return { sortMode, items };
 }
 
@@ -110,7 +119,7 @@ export function serializeTodoMarkdown(doc: TodoDoc): string {
     lines.push(
       `- [${checkbox}] ${item.text} <!-- tonote:item id="${item.id}" priority="${item.priority}"${completedAttr} -->`,
     );
-    for (const note of item.notes) {
+    for (const note of item.notes.filter(isNonBlankNote)) {
       const noteLines = note.text.split("\n");
       lines.push(`  - <!-- tonote:note id="${note.id}" --> ${noteLines[0]}`);
       for (const continuation of noteLines.slice(1)) {
