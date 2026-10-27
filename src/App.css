@@ -1222,7 +1222,9 @@ body {
   color: var(--text);
   font-family: inherit;
   font-size: 0.85rem;
-  resize: vertical;
+  /* Height is fitted to the content in TodoItemNotes. */
+  resize: none;
+  overflow: hidden;
 }
 
 .todo-item-notes__delete {

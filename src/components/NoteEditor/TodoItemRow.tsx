@@ -101,6 +101,14 @@ export function TodoItemRow({
     setPriorityMenuOpen(false);
   }
 
+  // Focus stays inside the item, so it remains active and its notes stay open.
+  function focusItemText() {
+    const el = textRef.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }
+
   function handleAddNote() {
     if (hasBlankNote) return;
     addNoteRequestedRef.current = true;
@@ -186,9 +194,12 @@ export function TodoItemRow({
             className="todo-item__notes-indicator"
             title={`${item.notes.length} note${item.notes.length === 1 ? "" : "s"}`}
             tabIndex={-1}
-            // Activate the item (which reveals its notes) by focusing its text.
+            // Reveal the notes and put the cursor in the first one.
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => textRef.current?.focus()}
+            onClick={() => {
+              setIsFocused(true);
+              setPendingFocusNoteId(item.notes[0].id);
+            }}
           >
             <MessageSquare size={14} />
             <span>{item.notes.length}</span>
@@ -233,6 +244,8 @@ export function TodoItemRow({
         <TodoItemNotes
           notes={item.notes}
           focusNoteId={pendingFocusNoteId}
+          onNoteFocused={() => setPendingFocusNoteId(null)}
+          onLeaveNote={focusItemText}
           canAddNote={!hasBlankNote}
           onAddNote={handleAddNote}
           onNoteTextChange={onNoteTextChange}
