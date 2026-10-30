@@ -123,6 +123,7 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
                 key={entry.id}
                 className={`password-grid__row${entry.id === selectedId ? " password-grid__row--selected" : ""}`}
                 onClick={() => setSelectedId(entry.id)}
+                onFocus={() => setSelectedId(entry.id)}
               >
                 <td>
                   <input
