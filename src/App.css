@@ -199,6 +199,33 @@ body {
   margin-top: 4px;
 }
 
+/* About modal */
+
+.about-modal {
+  width: 380px;
+}
+
+.about-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.about-modal__icon {
+  width: 64px;
+  height: 64px;
+}
+
+.about-modal__text {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.about-modal__text a {
+  color: var(--accent);
+}
+
 /* App shell */
 
 .app-shell {

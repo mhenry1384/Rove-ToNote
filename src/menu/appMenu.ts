@@ -6,9 +6,9 @@ import { usePrefsStore } from "../stores/usePrefsStore";
 import { useDriveStore } from "../stores/useDriveStore";
 import { useSelectionStore } from "../stores/useSelectionStore";
 import { useBackupStore } from "../stores/useBackupStore";
+import { useAboutStore } from "../stores/useAboutStore";
 import { getActiveMarkdownView } from "../components/NoteEditor/activeMarkdownEditor";
 import { sortLines } from "../components/NoteEditor/sortLines";
-import { version as appVersion } from "../../package.json";
 
 const FILE_FILTERS = [{ name: "Rove ToNote Document", extensions: ["tonote"] }];
 
@@ -148,15 +148,8 @@ function handleViewBackups(): void {
   useBackupStore.getState().open();
 }
 
-async function handleAbout(): Promise<void> {
-  await message(
-    `Rove ToNote ${appVersion}\n\n` +
-      "A desktop notes app that keeps markdown notes, to-do lists and password grids " +
-      "in a single .tonote file, on your disk or on Google Drive, with optional encryption.\n\n" +
-      "https://github.com/mhenry1384\n\n" +
-      "Licensed under the GNU General Public License v3.0 (GPLv3).",
-    { title: "About Rove ToNote", kind: "info" },
-  );
+function handleAbout(): void {
+  useAboutStore.getState().open();
 }
 
 let saveMenuItem: MenuItem | null = null;
@@ -339,7 +332,7 @@ export async function installAppMenu(): Promise<void> {
       await MenuItem.new({
         id: "help-about",
         text: "About Rove ToNote",
-        action: () => void handleAbout(),
+        action: handleAbout,
       }),
     ],
   });

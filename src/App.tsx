@@ -28,6 +28,7 @@ import { ChangePasswordModal } from "./components/Vault/ChangePasswordModal";
 import { DriveFilePicker } from "./components/Drive/DriveFilePicker";
 import { SaveToDriveModal } from "./components/Drive/SaveToDriveModal";
 import { BackupListModal } from "./components/Backup/BackupListModal";
+import { AboutModal } from "./components/About/AboutModal";
 import { ConflictBanner } from "./components/Drive/ConflictBanner";
 import { Toast } from "./components/Toast/Toast";
 
@@ -160,6 +161,7 @@ function App() {
           loadError={loadError}
         />
         <DriveFilePicker />
+        <AboutModal />
       </>
     );
   }
@@ -220,6 +222,7 @@ function App() {
       <DriveFilePicker />
       <SaveToDriveModal />
       <BackupListModal />
+      <AboutModal />
       <Toast />
       <div className="app-body">
         <aside className="app-tree-pane">
