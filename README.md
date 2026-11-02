@@ -17,7 +17,7 @@ A desktop notes app for Windows, built with [Tauri 2](https://tauri.app/), React
 
 - **Markdown**: a rich editor based on [Milkdown Crepe](https://milkdown.dev/). **Edit → Sort Lines** sorts the selected lines alphabetically. If nothing is selected, it sorts the list under the cursor, or else the whole note.
 - **To-do list**: tasks with checkboxes, drag-to-reorder, high/medium/low priority, and notes on each task. Sort by hand, by priority or alphabetically. Only the 10 most recently completed tasks are kept. A to-do list is stored as ordinary GFM task-list markdown, with its extra data in HTML comments, so it still reads well in any markdown viewer.
-- **Password grid**: a table of name, username, password and note that is always sorted by name. It has its own filter box and undo for deleted rows. Clicking into a password copies it to the clipboard.
+- **Password grid**: a table of name, username, password and note that is always sorted by name. It has its own filter box and undo for deleted rows. Clicking into a username or password selects it and copies it to the clipboard. URLs in a row's note open in your default browser when clicked.
 - **Folder**: a container for other notes.
 
 ### Encryption

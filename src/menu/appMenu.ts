@@ -8,6 +8,7 @@ import { useSelectionStore } from "../stores/useSelectionStore";
 import { useBackupStore } from "../stores/useBackupStore";
 import { getActiveMarkdownView } from "../components/NoteEditor/activeMarkdownEditor";
 import { sortLines } from "../components/NoteEditor/sortLines";
+import { version as appVersion } from "../../package.json";
 
 const FILE_FILTERS = [{ name: "Rove ToNote Document", extensions: ["tonote"] }];
 
@@ -145,6 +146,17 @@ function handleSortLines(): void {
 
 function handleViewBackups(): void {
   useBackupStore.getState().open();
+}
+
+async function handleAbout(): Promise<void> {
+  await message(
+    `Rove ToNote ${appVersion}\n\n` +
+      "A desktop notes app that keeps markdown notes, to-do lists and password grids " +
+      "in a single .tonote file, on your disk or on Google Drive, with optional encryption.\n\n" +
+      "https://github.com/mhenry1384\n\n" +
+      "Licensed under the GNU General Public License v3.0 (GPLv3).",
+    { title: "About Rove ToNote", kind: "info" },
+  );
 }
 
 let saveMenuItem: MenuItem | null = null;
@@ -321,6 +333,17 @@ export async function installAppMenu(): Promise<void> {
     ],
   });
 
+  const helpMenu = await Submenu.new({
+    text: "Help",
+    items: [
+      await MenuItem.new({
+        id: "help-about",
+        text: "About Rove ToNote",
+        action: () => void handleAbout(),
+      }),
+    ],
+  });
+
   // macOS always titles the first submenu with the app's name, so give it
   // the standard app-menu contents rather than letting File land there.
   // Quit closes the window (rather than using the predefined Quit item) so
@@ -348,7 +371,7 @@ export async function installAppMenu(): Promise<void> {
     : null;
 
   const menu = await Menu.new({
-    items: appMenu ? [appMenu, fileMenu, editMenu] : [fileMenu, editMenu],
+    items: appMenu ? [appMenu, fileMenu, editMenu, helpMenu] : [fileMenu, editMenu, helpMenu],
   });
   await menu.setAsAppMenu();
 

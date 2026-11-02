@@ -17,7 +17,7 @@
     "core:window:allow-destroy",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://accounts.google.com/*" }]
+      "allow": [{ "url": "http://*" }, { "url": "https://*" }]
     }
   ]
 }

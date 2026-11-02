@@ -1,5 +1,15 @@
-import { useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { Plus, Trash2, Undo2 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   parsePasswordGrid,
   serializePasswordGrid,
@@ -17,6 +27,41 @@ function emptyEntry(): PasswordEntry {
   return { id: crypto.randomUUID(), name: "", username: "", password: "", note: "" };
 }
 
+const URL_PATTERN = /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+
+/** Splits note text into plain text and links that open in the default
+ * browser. Trailing punctuation is left out of the link so a URL at the end
+ * of a sentence still works. */
+function linkify(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const match of text.matchAll(URL_PATTERN)) {
+    const raw = match[0].replace(/[.,;:!?)\]}]+$/, "");
+    const start = match.index;
+    if (start > last) parts.push(text.slice(last, start));
+    const href = raw.toLowerCase().startsWith("www.") ? `https://${raw}` : raw;
+    parts.push(
+      <a
+        href={href}
+        className="password-grid__note-link"
+        // Keep the click from focusing the note view, which would switch it
+        // to the textarea before the click lands.
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openUrl(href).catch((err) => console.error("Failed to open URL", err));
+        }}
+      >
+        {raw}
+      </a>,
+    );
+    last = start + raw.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts.map((p, i) => <Fragment key={i}>{p}</Fragment>);
+}
+
 /** Grid of name/username/password rows for a "password grid" note, always
  * sorted by name, with a filter box and a bottom pane showing the selected
  * row's note. Uncontrolled like TodoEditor: parses `content` once at mount
@@ -30,7 +75,18 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
   // straight through — otherwise the grid (always sorted by name) would
   // reorder out from under the row on every keystroke.
   const [nameDraft, setNameDraft] = useState<{ id: string; value: string } | null>(null);
-  const justFocusedPassword = useRef(false);
+  const justFocusedCopyField = useRef(false);
+  const nameInputs = useRef(new Map<string, HTMLInputElement>());
+  // Set by Add Row so the new row's name input gets focus once it renders.
+  const [focusNameId, setFocusNameId] = useState<string | null>(null);
+  // Whether the note pane shows the textarea rather than the linkified view.
+  const [editingNote, setEditingNote] = useState(false);
+
+  useEffect(() => {
+    if (!focusNameId) return;
+    nameInputs.current.get(focusNameId)?.focus();
+    setFocusNameId(null);
+  }, [focusNameId]);
 
   const deletedCount = usePasswordGridUndoStore(
     (s) => s.deletedByNote[noteId]?.length ?? 0,
@@ -49,6 +105,9 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
     const entry = emptyEntry();
     updateEntries([...doc.entries, entry]);
     setSelectedId(entry.id);
+    // The new, empty row wouldn't match a filter, so clear it.
+    setFilter("");
+    setFocusNameId(entry.id);
   }
 
   function handleDeleteRow(id: string) {
@@ -81,6 +140,32 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
   }, [sortedEntries, filter]);
 
   const selectedEntry = doc.entries.find((e) => e.id === selectedId) ?? null;
+
+  /** Handlers for the username and password cells: focusing one selects its
+   * whole value and copies it to the clipboard. */
+  function copyOnFocusProps(label: string) {
+    return {
+      onFocus: (e: FocusEvent<HTMLInputElement>) => {
+        e.target.select();
+        if (e.target.value) {
+          navigator.clipboard.writeText(e.target.value).catch((err) => {
+            console.error(`Failed to copy ${label} to clipboard`, err);
+          });
+        }
+      },
+      onMouseDown: (e: MouseEvent<HTMLInputElement>) => {
+        justFocusedCopyField.current = document.activeElement !== e.currentTarget;
+      },
+      onMouseUp: (e: MouseEvent<HTMLInputElement>) => {
+        // The mouseup that ends a focusing click would otherwise
+        // collapse the selection made in onFocus to a caret.
+        if (justFocusedCopyField.current) {
+          e.preventDefault();
+          justFocusedCopyField.current = false;
+        }
+      },
+    };
+  }
 
   return (
     <div className="password-grid">
@@ -127,6 +212,10 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
               >
                 <td>
                   <input
+                    ref={(el) => {
+                      if (el) nameInputs.current.set(entry.id, el);
+                      else nameInputs.current.delete(entry.id);
+                    }}
                     className="password-grid__cell-input"
                     value={nameDraft?.id === entry.id ? nameDraft.value : entry.name}
                     onFocus={() => setNameDraft({ id: entry.id, value: entry.name })}
@@ -145,6 +234,7 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
                     className="password-grid__cell-input"
                     value={entry.username}
                     onChange={(e) => updateEntry(entry.id, { username: e.target.value })}
+                    {...copyOnFocusProps("username")}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </td>
@@ -153,25 +243,7 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
                     className="password-grid__cell-input"
                     value={entry.password}
                     onChange={(e) => updateEntry(entry.id, { password: e.target.value })}
-                    onFocus={(e) => {
-                      e.target.select();
-                      if (e.target.value) {
-                        navigator.clipboard.writeText(e.target.value).catch((err) => {
-                          console.error("Failed to copy password to clipboard", err);
-                        });
-                      }
-                    }}
-                    onMouseDown={(e) => {
-                      justFocusedPassword.current = document.activeElement !== e.currentTarget;
-                    }}
-                    onMouseUp={(e) => {
-                      // The mouseup that ends a focusing click would otherwise
-                      // collapse the selection made in onFocus to a caret.
-                      if (justFocusedPassword.current) {
-                        e.preventDefault();
-                        justFocusedPassword.current = false;
-                      }
-                    }}
+                    {...copyOnFocusProps("password")}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </td>
@@ -206,15 +278,31 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
         <label className="password-grid__note-label">
           Note{selectedEntry ? ` — ${selectedEntry.name || "Untitled"}` : ""}
         </label>
-        <textarea
-          className="password-grid__note-textarea"
-          value={selectedEntry?.note ?? ""}
-          disabled={!selectedEntry}
-          placeholder={
-            selectedEntry ? "Notes for this entry…" : "Select a row to view or edit its note."
-          }
-          onChange={(e) => selectedEntry && updateEntry(selectedEntry.id, { note: e.target.value })}
-        />
+        {selectedEntry?.note && !editingNote ? (
+          // Read view with clickable URLs; clicking or tabbing into it
+          // switches to the textarea.
+          <div
+            className="password-grid__note-view"
+            tabIndex={0}
+            onFocus={() => setEditingNote(true)}
+            onClick={() => setEditingNote(true)}
+          >
+            {linkify(selectedEntry.note)}
+          </div>
+        ) : (
+          <textarea
+            className="password-grid__note-textarea"
+            value={selectedEntry?.note ?? ""}
+            disabled={!selectedEntry}
+            autoFocus={editingNote}
+            placeholder={
+              selectedEntry ? "Notes for this entry…" : "Select a row to view or edit its note."
+            }
+            onFocus={() => setEditingNote(true)}
+            onBlur={() => setEditingNote(false)}
+            onChange={(e) => selectedEntry && updateEntry(selectedEntry.id, { note: e.target.value })}
+          />
+        )}
       </div>
     </div>
   );
