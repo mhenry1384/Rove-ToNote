@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import {
   closestCenter,
   DndContext,
@@ -32,7 +32,7 @@ interface TodoEditorProps {
 /** A user deletion that the Undo link can reverse, with enough position info
  * to put the deleted thing back where it was. */
 type Deletion =
-  | { kind: "item"; item: TodoItem; index: number }
+  | { kind: "items"; entries: { item: TodoItem; index: number }[] }
   | { kind: "note"; itemId: string; note: TodoNote; index: number };
 
 const MAX_UNDO = 20;
@@ -40,6 +40,11 @@ const MAX_UNDO = 20;
 /** Per-list undo history, kept in memory only so it survives switching
  * between lists (which remounts the editor) but not an app restart. */
 const undoStacksByNoteId = new Map<string, Deletion[]>();
+
+const UNDO_TITLES: Record<Deletion["kind"], string> = {
+  items: "Restore the deleted completed tasks",
+  note: "Restore the last deleted note",
+};
 
 const SORT_MODES: { mode: SortMode; label: string }[] = [
   { mode: "manual", label: "Manual" },
@@ -97,11 +102,15 @@ export function TodoEditor({ noteId, content, onChange }: TodoEditorProps) {
     setUndoStack((stack) => [...stack, deletion].slice(-MAX_UNDO));
   }
 
-  function handleDeleteItem(itemId: string) {
-    const index = doc.items.findIndex((i) => i.id === itemId);
-    if (index === -1) return;
-    pushUndo({ kind: "item", item: doc.items[index], index });
-    updateItems(doc.items.filter((i) => i.id !== itemId));
+  function handleDeleteCompleted() {
+    // Indices are ascending, so re-inserting in this order on undo puts
+    // every item back in its original slot.
+    const entries = doc.items
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.checked);
+    if (entries.length === 0) return;
+    pushUndo({ kind: "items", entries });
+    updateItems(doc.items.filter((i) => !i.checked));
   }
 
   function handleDeleteNote(itemId: string, noteId: string) {
@@ -119,11 +128,12 @@ export function TodoEditor({ noteId, content, onChange }: TodoEditorProps) {
     const deletion = undoStack[undoStack.length - 1];
     if (!deletion) return;
     setUndoStack((stack) => stack.slice(0, -1));
-    if (deletion.kind === "item") {
+    if (deletion.kind === "items") {
       const items = [...doc.items];
-      items.splice(Math.min(deletion.index, items.length), 0, deletion.item);
+      for (const { item, index } of deletion.entries) {
+        items.splice(Math.min(index, items.length), 0, item);
+      }
       updateItems(items);
-      setPendingScrollId(deletion.item.id);
     } else {
       // If the note's item has since been deleted too, there's nowhere to put it back.
       mapItem(deletion.itemId, (i) => {
@@ -181,7 +191,6 @@ export function TodoEditor({ noteId, content, onChange }: TodoEditorProps) {
         onPriorityChange={(priority: Priority) =>
           mapItem(item.id, (i) => ({ ...i, priority }))
         }
-        onDelete={() => handleDeleteItem(item.id)}
         onAddNote={() =>
           mapItem(item.id, (i) => ({
             ...i,
@@ -209,11 +218,7 @@ export function TodoEditor({ noteId, content, onChange }: TodoEditorProps) {
           <button
             type="button"
             className="todo-editor__undo"
-            title={
-              undoStack[undoStack.length - 1].kind === "item"
-                ? "Restore the last deleted task"
-                : "Restore the last deleted note"
-            }
+            title={UNDO_TITLES[undoStack[undoStack.length - 1].kind]}
             onClick={handleUndo}
           >
             Undo
@@ -247,13 +252,23 @@ export function TodoEditor({ noteId, content, onChange }: TodoEditorProps) {
             >
               {activeItems.map(renderRow)}
               {completedItems.length > 0 && (
-                <button
-                  type="button"
-                  className="todo-editor__completed-toggle"
-                  onClick={() => setShowCompleted((v) => !v)}
-                >
-                  {showCompleted ? "Hide" : "Show"} completed ({completedItems.length})
-                </button>
+                <div className="todo-editor__completed-bar">
+                  <button
+                    type="button"
+                    className="todo-editor__completed-toggle"
+                    onClick={() => setShowCompleted((v) => !v)}
+                  >
+                    {showCompleted ? "Hide" : "Show"} completed ({completedItems.length})
+                  </button>
+                  <button
+                    type="button"
+                    className="todo-editor__completed-delete"
+                    title="Delete all completed tasks"
+                    onClick={handleDeleteCompleted}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               )}
               {showCompleted && completedItems.map(renderRow)}
             </SortableContext>

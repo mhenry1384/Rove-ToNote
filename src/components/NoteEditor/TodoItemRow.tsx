@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Flag, GripVertical, MessageSquare, Trash2 } from "lucide-react";
+import { Flag, GripVertical, MessageSquare } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Priority, TodoItem } from "../../document/todoMarkdown";
@@ -12,7 +12,6 @@ interface TodoItemRowProps {
   onToggleChecked: () => void;
   onTextChange: (text: string) => void;
   onPriorityChange: (priority: Priority) => void;
-  onDelete: () => void;
   onAddNote: () => void;
   onNoteTextChange: (noteId: string, text: string) => void;
   onNoteDelete: (noteId: string) => void;
@@ -25,7 +24,6 @@ export function TodoItemRow({
   onToggleChecked,
   onTextChange,
   onPriorityChange,
-  onDelete,
   onAddNote,
   onNoteTextChange,
   onNoteDelete,
@@ -180,14 +178,6 @@ export function TodoItemRow({
           }}
           placeholder="Task"
         />
-        <button
-          type="button"
-          className="todo-item__delete"
-          title="Delete task"
-          onClick={onDelete}
-        >
-          <Trash2 size={14} />
-        </button>
         {item.notes.length > 0 && (
           <button
             type="button"
