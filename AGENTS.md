@@ -9,3 +9,5 @@
   clean, keep the current version.
 - On macOS: do not build or package a DMG during a release build unless the user explicitly asks
   for one. Build the app bundle only (`npm run tauri build -- --bundles app`).
+- On macOS: after a release build, if Rove ToNote is already running, quit it and relaunch it so
+  the new build is the one running. If it isn't running, don't start it.
