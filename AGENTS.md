@@ -1,7 +1,10 @@
 # Working with this repo
 
 - Do not monitor or watch the running app (dev server, Tauri process, etc.) — the user monitors it themselves.
-- After making a code change, automatically build and restart the app (kill the running `npm run tauri dev` process and relaunch it) rather than relying on Vite HMR alone.
+- Do not use the dev app (`npm run tauri dev`) unless the user asks for it.
+- After making a code change, automatically do a release build (see the release build rules
+  below), then quit any running Rove ToNote and launch the new release build, even if it wasn't
+  running before.
 - Before every release build, check `git status`. If there are uncommitted changes, bump the
   version number first: increment the rightmost digit (e.g. 0.4.0 -> 0.4.1) in `package.json`,
   `package-lock.json` (both the top-level `version` and the root package's entry under

@@ -157,10 +157,12 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
         justFocusedCopyField.current = document.activeElement !== e.currentTarget;
       },
       onMouseUp: (e: MouseEvent<HTMLInputElement>) => {
-        // The mouseup that ends a focusing click would otherwise
-        // collapse the selection made in onFocus to a caret.
+        // The mouse click that focused the field can collapse the selection
+        // made in onFocus to a caret (WebView2 does this when refocusing an
+        // input that had a selection before), so select it again here.
         if (justFocusedCopyField.current) {
           e.preventDefault();
+          e.currentTarget.select();
           justFocusedCopyField.current = false;
         }
       },
