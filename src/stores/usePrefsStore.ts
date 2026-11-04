@@ -5,6 +5,7 @@ import {
   savePrefs,
   withNoteExpanded,
   withRecentBackgroundImageUrl,
+  withRecentEmoji,
   withoutRecentBackgroundImageUrl,
   type Prefs,
 } from "../document/prefs";
@@ -23,10 +24,16 @@ interface PrefsState {
   ) => Promise<void>;
   addRecentBackgroundImageUrl: (url: string) => Promise<void>;
   removeRecentBackgroundImageUrl: (url: string) => Promise<void>;
+  addRecentEmoji: (emoji: string) => Promise<void>;
 }
 
 export const usePrefsStore = create<PrefsState>((set, get) => ({
-  prefs: { lastOpenedSource: null, treeExpandState: {}, recentBackgroundImageUrls: [] },
+  prefs: {
+    lastOpenedSource: null,
+    treeExpandState: {},
+    recentBackgroundImageUrls: [],
+    recentEmojis: [],
+  },
   isLoaded: false,
 
   load: async () => {
@@ -56,6 +63,12 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
 
   removeRecentBackgroundImageUrl: async (url) => {
     const next = withoutRecentBackgroundImageUrl(get().prefs, url);
+    set({ prefs: next });
+    await savePrefs(next);
+  },
+
+  addRecentEmoji: async (emoji) => {
+    const next = withRecentEmoji(get().prefs, emoji);
     set({ prefs: next });
     await savePrefs(next);
   },

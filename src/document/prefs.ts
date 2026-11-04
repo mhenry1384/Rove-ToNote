@@ -14,12 +14,20 @@ export interface Prefs {
   treeExpandState: Record<string, Record<string, boolean>>;
   /** Most-recently-used first, capped at MAX_RECENT_BACKGROUND_IMAGE_URLS. */
   recentBackgroundImageUrls: string[];
+  /** Most-recently-used first, capped at MAX_RECENT_EMOJIS. */
+  recentEmojis: string[];
 }
 
 export const MAX_RECENT_BACKGROUND_IMAGE_URLS = 15;
+export const MAX_RECENT_EMOJIS = 18;
 
 function defaultPrefs(): Prefs {
-  return { lastOpenedSource: null, treeExpandState: {}, recentBackgroundImageUrls: [] };
+  return {
+    lastOpenedSource: null,
+    treeExpandState: {},
+    recentBackgroundImageUrls: [],
+    recentEmojis: [],
+  };
 }
 
 let prefsFilePathPromise: Promise<string> | null = null;
@@ -103,5 +111,15 @@ export function withoutRecentBackgroundImageUrl(prefs: Prefs, url: string): Pref
   return {
     ...prefs,
     recentBackgroundImageUrls: prefs.recentBackgroundImageUrls.filter((u) => u !== url),
+  };
+}
+
+/** Moves `emoji` to the front of the recent-emoji list (adding it if new),
+ * deduped, capped at MAX_RECENT_EMOJIS. */
+export function withRecentEmoji(prefs: Prefs, emoji: string): Prefs {
+  const deduped = prefs.recentEmojis.filter((e) => e !== emoji);
+  return {
+    ...prefs,
+    recentEmojis: [emoji, ...deduped].slice(0, MAX_RECENT_EMOJIS),
   };
 }
