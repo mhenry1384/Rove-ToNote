@@ -11,6 +11,9 @@
   `packages[""]`), `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `src-tauri/Cargo.lock`
   (the version of the `tonote` package entry). If the working tree is
   clean, keep the current version.
+- On Windows: do not generate an installer (MSI or NSIS setup.exe) during a release build unless
+  the user explicitly asks for one. Build the executable only
+  (`npm run tauri build -- --no-bundle`).
 - On macOS: do not build or package a DMG during a release build unless the user explicitly asks
   for one. Build the app bundle only (`npm run tauri build -- --bundles app`).
 - On macOS: after a release build, if Rove ToNote is already running, quit it and relaunch it so
