@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Folder, Lock } from "lucide-react";
 import { useDocumentStore } from "../../document/documentStore";
 import { useSelectionStore } from "../../stores/useSelectionStore";
@@ -134,10 +134,7 @@ export function NoteEditor() {
   return (
     <div className={wrapperClass} key={note.id} style={wrapperStyle}>
       {bgImage}
-      <h2 className="note-editor__title">
-        {note.title}
-        {note.isEncrypted && <Lock size={14} className="note-editor__lock" />}
-      </h2>
+      <NoteTitle noteId={note.id} title={note.title} isEncrypted={!!note.isEncrypted} />
       {note.type === "markdown" ? (
         <MarkdownEditor
           noteId={note.id}
@@ -155,5 +152,61 @@ export function NoteEditor() {
         </div>
       )}
     </div>
+  );
+}
+
+/** The note's heading; click it to rename in place (Enter/blur saves, Escape
+ * cancels). */
+function NoteTitle({ noteId, title, isEncrypted }: { noteId: string; title: string; isEncrypted: boolean }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [isEditing]);
+
+  function commitRename() {
+    const trimmed = draftTitle.trim();
+    if (trimmed && trimmed !== title) {
+      useDocumentStore.getState().renameNote(noteId, trimmed);
+    }
+    setIsEditing(false);
+  }
+
+  return (
+    <h2 className="note-editor__title">
+      {isEditing ? (
+        <input
+          ref={inputRef}
+          className="note-editor__title-input"
+          value={draftTitle}
+          onChange={(e) => setDraftTitle(e.target.value)}
+          onBlur={commitRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitRename();
+            else if (e.key === "Escape") {
+              setDraftTitle(title);
+              setIsEditing(false);
+            }
+          }}
+        />
+      ) : (
+        <span
+          className="note-editor__title-text"
+          title="Click to rename"
+          onClick={() => {
+            setDraftTitle(title);
+            setIsEditing(true);
+          }}
+        >
+          {title}
+        </span>
+      )}
+      {isEncrypted && <Lock size={14} className="note-editor__lock" />}
+    </h2>
   );
 }

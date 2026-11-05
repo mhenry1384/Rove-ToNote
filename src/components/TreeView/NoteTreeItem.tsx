@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, FileText, Folder, KeyRound, ListChecks, ListIndentDecrease, ListIndentIncrease, Lock, MoreHorizontal, Trash2, Unlock } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder, KeyRound, ListChecks, Lock, MoreHorizontal } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDocumentStore } from "../../document/documentStore";
@@ -8,17 +8,12 @@ import { useSelectionStore } from "../../stores/useSelectionStore";
 import { useVaultStore } from "../../stores/useVaultStore";
 import { useDragPreviewStore } from "../../stores/useDragPreviewStore";
 import { docKey } from "../../document/documentSource";
-import { findPreviousSibling, folderEncryptionState, type TreeNode } from "../../document/treeUtils";
-import {
-  deleteNoteWithUndo,
-  decryptNote,
-  encryptNote,
-  decryptAllInFolder,
-  encryptAllInFolder,
-} from "../../document/noteActions";
+import { findPreviousSibling, type TreeNode } from "../../document/treeUtils";
 import { parseTodoMarkdown } from "../../document/todoMarkdown";
 import { decryptString, parseEnvelope } from "../../document/crypto/vaultCrypto";
-import { NOTE_COLORS, noteColorBg, DEFAULT_BACKGROUND_IMAGE_OPACITY } from "../../document/noteColors";
+import { noteColorBg } from "../../document/noteColors";
+import { showNoteContextMenu } from "./noteContextMenu";
+import { BackgroundImageModal } from "./BackgroundImageModal";
 
 interface NoteTreeItemProps {
   node: TreeNode;
@@ -39,7 +34,6 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
   const storedExpanded = usePrefsStore((s) =>
     key ? s.isExpanded(key, node.id) : true,
   );
-  const recentBackgroundImageUrls = usePrefsStore((s) => s.prefs.recentBackgroundImageUrls);
   const isExpanded = isFiltering || storedExpanded;
 
   const isSelected = selectedNoteId === node.id;
@@ -47,19 +41,12 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
   const prevSiblingId = findPreviousSibling(notes ?? [], node.id);
   // Only folders may have children — indenting under a non-folder sibling is disallowed.
   const canIndent = !!prevSiblingId && notes?.find((n) => n.id === prevSiblingId)?.type === "folder";
-  const canDelete = node.type !== "folder" || node.children.length === 0;
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(node.title);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
-  const [imageUrlDraft, setImageUrlDraft] = useState(node.backgroundImageUrl ?? "");
-  const [isRecentUrlsOpen, setIsRecentUrlsOpen] = useState(false);
-  const [hoveredRecentUrl, setHoveredRecentUrl] = useState<string | null>(null);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const recentUrlsRef = useRef<HTMLDivElement>(null);
-  const recentUrlsToggleRef = useRef<HTMLButtonElement>(null);
 
   const isUnlocked = useVaultStore((s) => s.isUnlocked);
   const vaultKey = useVaultStore((s) => s.key);
@@ -179,68 +166,11 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
       e.preventDefault();
       if (e.shiftKey) outdent();
       else indent();
-    } else if (e.key === "F2") {
+    } else if (e.key === "F2" || e.key === "Enter") {
       e.preventDefault();
-      setDraftTitle(node.title);
-      setIsEditing(true);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      setDraftTitle(node.title);
-      setIsEditing(true);
+      startRename();
     }
   }
-
-  useEffect(() => {
-    if (isMenuOpen) {
-      setImageUrlDraft(node.backgroundImageUrl ?? "");
-    } else {
-      setIsRecentUrlsOpen(false);
-      setHoveredRecentUrl(null);
-    }
-  }, [isMenuOpen, node.backgroundImageUrl]);
-
-  useEffect(() => {
-    if (!isRecentUrlsOpen) return;
-    function handlePointerDown(e: MouseEvent) {
-      if (recentUrlsRef.current?.contains(e.target as Node)) return;
-      if (recentUrlsToggleRef.current?.contains(e.target as Node)) return;
-      setIsRecentUrlsOpen(false);
-    }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setIsRecentUrlsOpen(false);
-        return;
-      }
-      if ((e.key === "Delete" || e.key === "Backspace") && hoveredRecentUrl) {
-        e.preventDefault();
-        void usePrefsStore.getState().removeRecentBackgroundImageUrl(hoveredRecentUrl);
-      }
-    }
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isRecentUrlsOpen, hoveredRecentUrl]);
-
-  useEffect(() => {
-    if (!isMenuOpen) return;
-    function handlePointerDown(e: MouseEvent) {
-      if (menuRef.current?.contains(e.target as Node)) return;
-      if (moreButtonRef.current?.contains(e.target as Node)) return;
-      setIsMenuOpen(false);
-    }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setIsMenuOpen(false);
-    }
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isMenuOpen]);
 
   const Icon =
     node.type === "todo"
@@ -258,68 +188,37 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
         : parseTodoMarkdown(node.content).items.filter((i) => !i.checked).length
       : null;
 
+  function startRename() {
+    setDraftTitle(node.title);
+    setIsEditing(true);
+  }
+
+  function openMenu(at?: { x: number; y: number }) {
+    setIsMenuOpen(true);
+    showNoteContextMenu({
+      node,
+      canIndent,
+      onRename: startRename,
+      onIndent: indent,
+      onOutdent: outdent,
+      onEditBackgroundImage: () => setIsImageModalOpen(true),
+      at,
+    })
+      .catch((err) => console.error("Failed to show note menu", err))
+      .finally(() => setIsMenuOpen(false));
+  }
+
   function handleMoreClick(e: React.MouseEvent) {
     e.stopPropagation();
     const rect = moreButtonRef.current?.getBoundingClientRect();
-    if (rect) setMenuPos({ top: rect.bottom + 4, left: rect.left });
-    setIsMenuOpen((open) => !open);
+    openMenu(rect ? { x: rect.left, y: rect.bottom + 4 } : undefined);
   }
 
-  function handlePickColor(colorId: string | null) {
-    useDocumentStore.getState().setNoteColor(node.id, colorId);
-    setIsMenuOpen(false);
-  }
-
-  function commitImageUrl() {
-    const trimmed = imageUrlDraft.trim();
-    if (trimmed === (node.backgroundImageUrl ?? "")) return;
-    useDocumentStore.getState().setNoteBackgroundImage(node.id, trimmed || null);
-    if (trimmed) {
-      // Only remember URLs that actually resolve to an image — a typo or a
-      // dead link shouldn't clutter the recent-URLs list.
-      const probe = new Image();
-      probe.onload = () => {
-        void usePrefsStore.getState().addRecentBackgroundImageUrl(trimmed);
-      };
-      probe.src = trimmed;
-    }
-  }
-
-  function handlePickRecentUrl(url: string) {
-    setImageUrlDraft(url);
-    useDocumentStore.getState().setNoteBackgroundImage(node.id, url);
-    setIsRecentUrlsOpen(false);
-  }
-
-  function handleOpacityChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!node.backgroundImageUrl) return;
-    useDocumentStore
-      .getState()
-      .setNoteBackgroundImage(node.id, node.backgroundImageUrl, Number(e.target.value) / 100);
-  }
-
-  function handleRemoveImage() {
-    setImageUrlDraft("");
-    useDocumentStore.getState().setNoteBackgroundImage(node.id, null);
-  }
-
-  function handleToggleEncryption() {
-    setIsMenuOpen(false);
-    if (node.isEncrypted) void decryptNote(node.id);
-    else void encryptNote(node.id);
-  }
-
-  const folderEncryption =
-    node.type === "folder" ? folderEncryptionState(notes ?? [], node.id) : null;
-
-  function handleEncryptAll() {
-    setIsMenuOpen(false);
-    void encryptAllInFolder(node.id);
-  }
-
-  function handleDecryptAll() {
-    setIsMenuOpen(false);
-    void decryptAllInFolder(node.id);
+  function handleContextMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isEditing) return;
+    openMenu();
   }
 
   return (
@@ -334,10 +233,8 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
         aria-selected={isSelected}
         aria-expanded={hasChildren ? isExpanded : undefined}
         onClick={() => useSelectionStore.getState().select(node.id)}
-        onDoubleClick={() => {
-          setDraftTitle(node.title);
-          setIsEditing(true);
-        }}
+        onDoubleClick={startRename}
+        onContextMenu={handleContextMenu}
         onKeyDown={handleKeyDown}
       >
         {(colorBg || node.backgroundImageUrl) && (
@@ -392,157 +289,8 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
           <MoreHorizontal size={14} />
         </button>
       </div>
-      {isMenuOpen && menuPos && (
-        <div
-          ref={menuRef}
-          className="note-menu"
-          style={{ top: menuPos.top, left: menuPos.left }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {canDelete && (
-            <button
-              type="button"
-              className="note-menu__item"
-              onClick={() => {
-                setIsMenuOpen(false);
-                deleteNoteWithUndo(node.id);
-              }}
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
-          )}
-          {node.type !== "folder" && (
-            <button type="button" className="note-menu__item" onClick={handleToggleEncryption}>
-              {node.isEncrypted ? <Unlock size={14} /> : <Lock size={14} />}
-              {node.isEncrypted ? "Decrypt" : "Encrypt"}
-            </button>
-          )}
-          {folderEncryption?.hasEncrypted && (
-            <button type="button" className="note-menu__item" onClick={handleDecryptAll}>
-              <Unlock size={14} />
-              Decrypt All
-            </button>
-          )}
-          {folderEncryption?.hasUnencrypted && (
-            <button type="button" className="note-menu__item" onClick={handleEncryptAll}>
-              <Lock size={14} />
-              Encrypt All
-            </button>
-          )}
-          {(canIndent || node.parentId !== null) && (
-            <>
-              <div className="note-menu__divider" />
-              {canIndent && (
-                <button
-                  type="button"
-                  className="note-menu__item"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    indent();
-                  }}
-                >
-                  <ListIndentIncrease size={14} />
-                  Indent (make sub-item)
-                </button>
-              )}
-              {node.parentId !== null && (
-                <button
-                  type="button"
-                  className="note-menu__item"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    outdent();
-                  }}
-                >
-                  <ListIndentDecrease size={14} />
-                  Outdent
-                </button>
-              )}
-            </>
-          )}
-          <div className="note-menu__divider" />
-          <div className="note-menu__label">Background color</div>
-          <div className="note-menu__swatches">
-            <button
-              type="button"
-              className={`note-color-swatch note-color-swatch--none${!node.color ? " note-color-swatch--selected" : ""}`}
-              title="Default"
-              onClick={() => handlePickColor(null)}
-            />
-            {NOTE_COLORS.map((color) => (
-              <button
-                key={color.id}
-                type="button"
-                className={`note-color-swatch${node.color === color.id ? " note-color-swatch--selected" : ""}`}
-                style={{ background: color.bg }}
-                title={color.label}
-                onClick={() => handlePickColor(color.id)}
-              />
-            ))}
-          </div>
-          <div className="note-menu__divider" />
-          <div className="note-menu__label">Background image</div>
-          <div className="note-menu__image-url-row">
-            <input
-              type="url"
-              className="note-menu__image-input"
-              placeholder="Image URL"
-              value={imageUrlDraft}
-              onChange={(e) => setImageUrlDraft(e.target.value)}
-              onBlur={commitImageUrl}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                else if (e.key === "Escape") setImageUrlDraft(node.backgroundImageUrl ?? "");
-              }}
-            />
-            {recentBackgroundImageUrls.length > 0 && (
-              <button
-                type="button"
-                ref={recentUrlsToggleRef}
-                className="note-menu__image-url-toggle"
-                title="Recent image URLs"
-                onClick={() => setIsRecentUrlsOpen((open) => !open)}
-              >
-                <ChevronDown size={14} />
-              </button>
-            )}
-          </div>
-          {isRecentUrlsOpen && (
-            <div className="note-menu__recent-urls" ref={recentUrlsRef}>
-              {recentBackgroundImageUrls.map((url) => (
-                <div
-                  key={url}
-                  className="note-menu__recent-url"
-                  onMouseEnter={() => setHoveredRecentUrl(url)}
-                  onMouseLeave={() =>
-                    setHoveredRecentUrl((cur) => (cur === url ? null : cur))
-                  }
-                  onClick={() => handlePickRecentUrl(url)}
-                  title={`${url}\n(hover and press Delete to remove)`}
-                >
-                  {url}
-                </div>
-              ))}
-            </div>
-          )}
-          {node.backgroundImageUrl && (
-            <div className="note-menu__image-opacity">
-              <input
-                type="range"
-                min={10}
-                max={100}
-                value={Math.round(
-                  (node.backgroundImageOpacity ?? DEFAULT_BACKGROUND_IMAGE_OPACITY) * 100,
-                )}
-                onChange={handleOpacityChange}
-              />
-              <button type="button" className="note-menu__item" onClick={handleRemoveImage}>
-                Remove image
-              </button>
-            </div>
-          )}
-        </div>
+      {isImageModalOpen && (
+        <BackgroundImageModal noteId={node.id} onClose={() => setIsImageModalOpen(false)} />
       )}
       {hasChildren && isExpanded && (
         <div role="group">
