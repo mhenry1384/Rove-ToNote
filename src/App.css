@@ -1,16 +1,20 @@
+/* Color schemes: see docs/color-schemes.md before changing any of these.
+   Light mode uses Alucard (Dracula's official light variant); dark mode uses
+   Dracula (draculatheme.com). The editor's --crepe-color-* tokens further
+   down mirror these two palettes. */
 :root {
   color-scheme: light dark;
-  --bg: #ffffff;
-  --bg-subtle: #f5f5f7;
-  --bg-hover: #ececef;
-  --bg-selected: #dbe6ff;
-  --border: #e0e0e3;
-  --text: #1a1a1e;
-  --text-muted: #6b6b72;
-  --accent: #3b5fe0;
-  --danger: #c0392b;
-  --warning: #8a5a00;
-  --warning-bg: #fdf0d5;
+  --bg: #fffbeb;
+  --bg-subtle: #f4f0dc;
+  --bg-hover: #ebe7d2;
+  --bg-selected: #cfcfde;
+  --border: #dedac6;
+  --text: #1f1f1f;
+  --text-muted: #6c664b;
+  --accent: #644ac9;
+  --danger: #cb3a2a;
+  --warning: #a34d14;
+  --warning-bg: #f6e3c6;
   font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -977,6 +981,28 @@ body {
 
 .markdown-editor .milkdown .ProseMirror *::selection {
   background: color-mix(in srgb, var(--accent), transparent 65%);
+}
+
+/* Editor tokens: Alucard in light mode, Dracula in dark mode (see
+   docs/color-schemes.md). Colored notes override these further up. */
+.markdown-editor .milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: #1f1f1f;
+  --crepe-color-surface: #fffbeb;
+  --crepe-color-surface-low: #f4f0dc;
+  --crepe-color-on-surface: #1f1f1f;
+  --crepe-color-on-surface-variant: #4a4637;
+  --crepe-color-outline: #6c664b;
+  --crepe-color-primary: #644ac9;
+  --crepe-color-secondary: #cfcfde;
+  --crepe-color-on-secondary: #1f1f1f;
+  --crepe-color-inverse: #1f1f1f;
+  --crepe-color-on-inverse: #fffbeb;
+  --crepe-color-inline-code: #14710a;
+  --crepe-color-error: #cb3a2a;
+  --crepe-color-hover: #ebe7d2;
+  --crepe-color-selected: #cfcfde;
+  --crepe-color-inline-area: #f4f0dc;
 }
 
 @media (prefers-color-scheme: dark) {

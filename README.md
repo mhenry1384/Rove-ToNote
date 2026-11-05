@@ -11,6 +11,7 @@ A desktop notes app for Windows, built with [Tauri 2](https://tauri.app/), React
 - F2 renames the selected note.
 - The filter box narrows the tree to notes whose title or content matches. Locked encrypted notes match on title only.
 - Each note can have a background color (a Google Keep-style palette) or a background image URL with adjustable opacity. The app remembers recently used image URLs.
+- The app follows the system's light/dark setting: light mode uses the [Alucard](https://draculatheme.com/spec) palette and dark mode uses [Dracula](https://draculatheme.com/). See [docs/color-schemes.md](docs/color-schemes.md) for every color the app uses.
 - Deleted notes can be restored from **Recently Deleted** or with **Edit → Undo Delete** until the app closes.
 
 ### Note types
