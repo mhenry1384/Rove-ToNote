@@ -8,7 +8,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import { Plus, Trash2, Undo2 } from "lucide-react";
+import { Maximize2, Minimize2, Plus, Trash2, Undo2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   parsePasswordGrid,
@@ -81,6 +81,9 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
   const [focusNameId, setFocusNameId] = useState<string | null>(null);
   // Whether the note pane shows the textarea rather than the linkified view.
   const [editingNote, setEditingNote] = useState(false);
+  // Whether the note pane fills the editor. The toolbar and grid stay mounted
+  // (hidden by CSS) so their scroll position survives collapsing.
+  const [noteExpanded, setNoteExpanded] = useState(false);
 
   useEffect(() => {
     if (!focusNameId) return;
@@ -170,7 +173,7 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
   }
 
   return (
-    <div className="password-grid">
+    <div className={`password-grid${noteExpanded ? " password-grid--note-expanded" : ""}`}>
       <div className="password-grid__toolbar">
         <input
           type="text"
@@ -277,9 +280,27 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
         </table>
       </div>
       <div className="password-grid__note-pane">
-        <label className="password-grid__note-label">
-          Note{selectedEntry ? ` — ${selectedEntry.name || "Untitled"}` : ""}
-        </label>
+        <div className="password-grid__note-header">
+          <label className="password-grid__note-label">
+            Note{selectedEntry ? ` — ${selectedEntry.name || "Untitled"}` : ""}
+          </label>
+          <button
+            type="button"
+            className="icon-button password-grid__note-expand"
+            title={noteExpanded ? "Collapse note" : "Expand note"}
+            aria-label={noteExpanded ? "Collapse note" : "Expand note"}
+            aria-expanded={noteExpanded}
+            disabled={!selectedEntry}
+            // Keep the caret in the textarea when toggling mid-edit. Only then:
+            // a name cell has to blur so its draft is committed before hiding.
+            onMouseDown={(e) => {
+              if (editingNote) e.preventDefault();
+            }}
+            onClick={() => setNoteExpanded((v) => !v)}
+          >
+            {noteExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
+        </div>
         {selectedEntry?.note && !editingNote ? (
           // Read view with clickable URLs; clicking or tabbing into it
           // switches to the textarea.

@@ -1669,9 +1669,45 @@ body {
   height: 140px;
 }
 
+.password-grid--note-expanded .password-grid__toolbar,
+.password-grid--note-expanded .password-grid__table-wrap {
+  display: none;
+}
+
+.password-grid--note-expanded .password-grid__note-pane {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.password-grid__note-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .password-grid__note-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   font-size: 0.8rem;
   color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.password-grid--note-expanded .password-grid__note-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.password-grid__note-expand {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: -2px 0;
+  border-radius: 4px;
 }
 
 .password-grid__note-textarea {
