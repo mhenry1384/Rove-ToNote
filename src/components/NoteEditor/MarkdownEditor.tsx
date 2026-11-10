@@ -6,7 +6,9 @@ import { getActiveMarkdownView, setActiveMarkdownView } from "./activeMarkdownEd
 import { EmojiPicker } from "./EmojiPicker";
 import { wrapInHeadingCommand } from "@milkdown/kit/preset/commonmark";
 import { Fragment, Slice } from "@milkdown/kit/prose/model";
-import { $shortcut } from "@milkdown/kit/utils";
+import { $prose, $shortcut } from "@milkdown/kit/utils";
+import { createSpellCheckPlugin } from "./spellCheckPlugin";
+import { showSpellContextMenu, startSpellChecker } from "./spellContextMenu";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 
@@ -23,6 +25,10 @@ const headingShortcuts = $shortcut((ctx) => {
     "Mod-3": setHeading(3),
   };
 });
+
+const spellCheck = $prose(() =>
+  createSpellCheckPlugin((view, misspelling) => void showSpellContextMenu(view, misspelling)),
+);
 
 /** Material "mood" face, as an SVG string for Crepe's top bar. The class lets
  * us find the rendered button to anchor the picker popup to. */
@@ -181,6 +187,8 @@ export function MarkdownEditor({
       api.markdownUpdated((_ctx, markdown) => onChangeRef.current(markdown)),
     );
     crepe.editor.use(headingShortcuts);
+    crepe.editor.use(spellCheck);
+    startSpellChecker();
     crepe.editor.config((ctx) => {
       ctx.update(editorViewOptionsCtx, (prev) => ({
         ...prev,

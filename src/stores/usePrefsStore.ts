@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import {
+  defaultPrefs,
   isNoteExpanded,
   loadPrefs,
   savePrefs,
+  withCustomDictionaryWord,
   withNoteExpanded,
   withRecentBackgroundImageUrl,
   withRecentEmoji,
@@ -25,15 +27,11 @@ interface PrefsState {
   addRecentBackgroundImageUrl: (url: string) => Promise<void>;
   removeRecentBackgroundImageUrl: (url: string) => Promise<void>;
   addRecentEmoji: (emoji: string) => Promise<void>;
+  addCustomDictionaryWord: (word: string) => Promise<void>;
 }
 
 export const usePrefsStore = create<PrefsState>((set, get) => ({
-  prefs: {
-    lastOpenedSource: null,
-    treeExpandState: {},
-    recentBackgroundImageUrls: [],
-    recentEmojis: [],
-  },
+  prefs: defaultPrefs(),
   isLoaded: false,
 
   load: async () => {
@@ -69,6 +67,12 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
 
   addRecentEmoji: async (emoji) => {
     const next = withRecentEmoji(get().prefs, emoji);
+    set({ prefs: next });
+    await savePrefs(next);
+  },
+
+  addCustomDictionaryWord: async (word) => {
+    const next = withCustomDictionaryWord(get().prefs, word);
     set({ prefs: next });
     await savePrefs(next);
   },

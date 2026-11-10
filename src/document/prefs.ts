@@ -16,17 +16,20 @@ export interface Prefs {
   recentBackgroundImageUrls: string[];
   /** Most-recently-used first, capped at MAX_RECENT_EMOJIS. */
   recentEmojis: string[];
+  /** Words added to the spell-check dictionary, sorted. */
+  customDictionaryWords: string[];
 }
 
 export const MAX_RECENT_BACKGROUND_IMAGE_URLS = 15;
 export const MAX_RECENT_EMOJIS = 18;
 
-function defaultPrefs(): Prefs {
+export function defaultPrefs(): Prefs {
   return {
     lastOpenedSource: null,
     treeExpandState: {},
     recentBackgroundImageUrls: [],
     recentEmojis: [],
+    customDictionaryWords: [],
   };
 }
 
@@ -111,6 +114,13 @@ export function withoutRecentBackgroundImageUrl(prefs: Prefs, url: string): Pref
   return {
     ...prefs,
     recentBackgroundImageUrls: prefs.recentBackgroundImageUrls.filter((u) => u !== url),
+  };
+}
+
+export function withCustomDictionaryWord(prefs: Prefs, word: string): Prefs {
+  return {
+    ...prefs,
+    customDictionaryWords: [...new Set([...prefs.customDictionaryWords, word])].sort(),
   };
 }
 

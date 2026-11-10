@@ -1752,3 +1752,9 @@ body {
 .password-grid__note-textarea:disabled {
   opacity: 0.6;
 }
+
+.markdown-editor .milkdown .ProseMirror .spell-error {
+  text-decoration: underline wavy var(--crepe-color-error, #cb3a2a);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 2px;
+}
