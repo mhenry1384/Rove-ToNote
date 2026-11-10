@@ -25,6 +25,20 @@ interface NoteTreeItemProps {
   isFiltering?: boolean;
 }
 
+/** The furthest down a dragged item may be offset before its bottom edge
+ * passes the bottom of the list. A transformed element counts toward its
+ * scroll container's scrollable area, so without this limit dragging past
+ * the end grows the list and auto-scroll keeps chasing it. Uses offsetTop/
+ * offsetHeight because they ignore the transform being limited. */
+function maxDragOffsetY(item: HTMLElement): number {
+  const topLevelItems = item
+    .closest(".tree-view__list")
+    ?.querySelectorAll<HTMLElement>(":scope > .tree-item");
+  const lastItem = topLevelItems?.[topLevelItems.length - 1];
+  if (!lastItem) return Infinity;
+  return lastItem.offsetTop + lastItem.offsetHeight - (item.offsetTop + item.offsetHeight);
+}
+
 export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemProps) {
   const source = useDocumentStore((s) => s.source);
   const key = source ? docKey(source) : null;
@@ -80,14 +94,21 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
 
   const {
     setNodeRef,
+    node: itemRef,
     attributes,
     listeners,
     transform,
     transition,
     isDragging,
   } = useSortable({ id: node.id, disabled: isEditing || isFiltering });
+  // Only the visual offset is limited: drop targeting still follows the
+  // pointer, so letting go below the list still lands at the end of it.
+  const limitedTransform =
+    isDragging && transform && itemRef.current
+      ? { ...transform, y: Math.min(transform.y, maxDragOffsetY(itemRef.current)) }
+      : transform;
   const dragStyle: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Transform.toString(limitedTransform),
     transition,
     position: isDragging ? "relative" : undefined,
     zIndex: isDragging ? 10 : undefined,
