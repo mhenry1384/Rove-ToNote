@@ -5,6 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Priority, TodoItem } from "../../document/todoMarkdown";
 import { PRIORITY_COLORS, PRIORITY_ORDER } from "../../document/priorityColors";
 import { TodoItemNotes } from "./TodoItemNotes";
+import { containsUrl, linkify } from "./linkify";
 
 interface TodoItemRowProps {
   item: TodoItem;
@@ -30,6 +31,7 @@ export function TodoItemRow({
   onDiscardBlankNotes,
 }: TodoItemRowProps) {
   const [isFocused, setIsFocused] = useState(false);
+  const [isTextFocused, setIsTextFocused] = useState(false);
   const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
   const [pendingFocusNoteId, setPendingFocusNoteId] = useState<string | null>(null);
   const addNoteRequestedRef = useRef(false);
@@ -137,6 +139,7 @@ export function TodoItemRow({
 
   const priorityColor = PRIORITY_COLORS[item.priority].color;
   const hasBlankNote = item.notes.some((n) => n.text.trim().length === 0);
+  const showLinks = !isTextFocused && containsUrl(item.text);
 
   return (
     <div
@@ -164,31 +167,45 @@ export function TodoItemRow({
           checked={item.checked}
           onChange={onToggleChecked}
         />
-        <textarea
-          ref={textRef}
-          className="todo-item__text"
-          rows={1}
-          value={item.text}
-          onChange={(e) => onTextChange(e.target.value.replace(/[\r\n]+/g, " "))}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              e.currentTarget.blur();
-            }
-          }}
-          placeholder="Task"
-        />
+        <div className="todo-item__text-field">
+          <textarea
+            ref={textRef}
+            className={`todo-item__text${showLinks ? " todo-item__text--behind-links" : ""}`}
+            rows={1}
+            value={item.text}
+            onChange={(e) => onTextChange(e.target.value.replace(/[\r\n]+/g, " "))}
+            onFocus={() => setIsTextFocused(true)}
+            onBlur={() => setIsTextFocused(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+            }}
+            placeholder="Task"
+          />
+          {/* Laid over the textarea while it isn't being edited. Only the links
+              take the pointer, so clicking other text still places the cursor. */}
+          {showLinks && (
+            <div className="todo-item__text todo-item__text-links">
+              {linkify(item.text, "todo-item__link")}
+            </div>
+          )}
+        </div>
         {item.notes.length > 0 && (
           <button
             type="button"
             className="todo-item__notes-indicator"
             title={`${item.notes.length} note${item.notes.length === 1 ? "" : "s"}`}
             tabIndex={-1}
-            // Reveal the notes and put the cursor in the first one.
+            // Reveal the notes and put the cursor in the first one, unless it
+            // has a link: a note being edited shows plain text, so the link
+            // couldn't be clicked.
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               setIsFocused(true);
-              setPendingFocusNoteId(item.notes[0].id);
+              if (containsUrl(item.notes[0].text)) focusItemText();
+              else setPendingFocusNoteId(item.notes[0].id);
             }}
           >
             <MessageSquare size={14} />

@@ -1341,6 +1341,37 @@ body {
   text-decoration: line-through;
 }
 
+.todo-item__text-field {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+/* The overlay draws the text instead. Fill color beats every themed `color`
+   rule without having to out-specify them. */
+.todo-item__text--behind-links {
+  -webkit-text-fill-color: transparent;
+}
+
+.todo-item__text-links {
+  position: absolute;
+  inset: 0;
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+
+.todo-item__link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.note-editor--colored .todo-item__link {
+  color: inherit;
+}
+
 .todo-item__priority {
   height: var(--todo-line-height);
   display: inline-flex;
@@ -1466,6 +1497,26 @@ body {
   border-color: rgba(0, 0, 0, 0.25);
   background: rgba(0, 0, 0, 0.08);
   color: rgba(0, 0, 0, 0.85);
+}
+
+.todo-item-notes__field {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Matches how a textarea lays out text, and comes after the colored-note rule
+   so the textarea's own border and background aren't drawn twice. */
+.todo-item-notes__field .todo-item-notes__text-links {
+  position: absolute;
+  inset: 0;
+  border-color: transparent;
+  background: transparent;
+  line-height: normal;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  pointer-events: none;
 }
 
 .note-editor--colored .todo-editor__completed-toggle,

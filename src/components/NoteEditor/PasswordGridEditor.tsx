@@ -1,15 +1,13 @@
 import {
-  Fragment,
   useEffect,
   useMemo,
   useRef,
   useState,
   type FocusEvent,
   type MouseEvent,
-  type ReactNode,
 } from "react";
 import { Maximize2, Minimize2, Plus, Trash2, Undo2 } from "lucide-react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { linkify } from "./linkify";
 import {
   parsePasswordGrid,
   serializePasswordGrid,
@@ -25,41 +23,6 @@ interface PasswordGridEditorProps {
 
 function emptyEntry(): PasswordEntry {
   return { id: crypto.randomUUID(), name: "", username: "", password: "", note: "" };
-}
-
-const URL_PATTERN = /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi;
-
-/** Splits note text into plain text and links that open in the default
- * browser. Trailing punctuation is left out of the link so a URL at the end
- * of a sentence still works. */
-function linkify(text: string): ReactNode[] {
-  const parts: ReactNode[] = [];
-  let last = 0;
-  for (const match of text.matchAll(URL_PATTERN)) {
-    const raw = match[0].replace(/[.,;:!?)\]}]+$/, "");
-    const start = match.index;
-    if (start > last) parts.push(text.slice(last, start));
-    const href = raw.toLowerCase().startsWith("www.") ? `https://${raw}` : raw;
-    parts.push(
-      <a
-        href={href}
-        className="password-grid__note-link"
-        // Keep the click from focusing the note view, which would switch it
-        // to the textarea before the click lands.
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          openUrl(href).catch((err) => console.error("Failed to open URL", err));
-        }}
-      >
-        {raw}
-      </a>,
-    );
-    last = start + raw.length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return parts.map((p, i) => <Fragment key={i}>{p}</Fragment>);
 }
 
 /** Grid of name/username/password rows for a "password grid" note, always
@@ -310,7 +273,7 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
             onFocus={() => setEditingNote(true)}
             onClick={() => setEditingNote(true)}
           >
-            {linkify(selectedEntry.note)}
+            {linkify(selectedEntry.note, "password-grid__note-link")}
           </div>
         ) : (
           <textarea

@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { TodoNote } from "../../document/todoMarkdown";
+import { containsUrl, linkify } from "./linkify";
 
 interface TodoItemNotesProps {
   notes: TodoNote[];
@@ -67,6 +68,8 @@ function TodoNoteRow({
   onDelete: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [isTextFocused, setIsTextFocused] = useState(false);
+  const showLinks = !isTextFocused && containsUrl(note.text);
 
   useLayoutEffect(() => {
     if (!autoFocus) return;
@@ -97,21 +100,31 @@ function TodoNoteRow({
 
   return (
     <div className="todo-item-notes__note">
-      <textarea
-        ref={textareaRef}
-        className="todo-item-notes__textarea"
-        value={note.text}
-        rows={1}
-        onChange={(e) => onTextChange(e.target.value)}
-        onKeyDown={(e) => {
-          // Edits are saved as you type; Escape just hands focus back to the
-          // item so its notes stay visible.
-          if (e.key === "Escape") {
-            e.preventDefault();
-            onLeave();
-          }
-        }}
-      />
+      <div className="todo-item-notes__field">
+        <textarea
+          ref={textareaRef}
+          className={`todo-item-notes__textarea${showLinks ? " todo-item__text--behind-links" : ""}`}
+          value={note.text}
+          rows={1}
+          onChange={(e) => onTextChange(e.target.value)}
+          onFocus={() => setIsTextFocused(true)}
+          onBlur={() => setIsTextFocused(false)}
+          onKeyDown={(e) => {
+            // Edits are saved as you type; Escape just hands focus back to the
+            // item so its notes stay visible.
+            if (e.key === "Escape") {
+              e.preventDefault();
+              onLeave();
+            }
+          }}
+        />
+        {/* Same overlay as the item text: only the links take the pointer. */}
+        {showLinks && (
+          <div className="todo-item-notes__textarea todo-item-notes__text-links">
+            {linkify(note.text, "todo-item__link")}
+          </div>
+        )}
+      </div>
       <button
         type="button"
         className="todo-item-notes__delete"
