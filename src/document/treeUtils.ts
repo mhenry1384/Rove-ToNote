@@ -96,8 +96,9 @@ function arrayMove<T>(array: T[], from: number, to: number): T[] {
  * it (or, if dropped at the very top, the parent of the note now directly
  * below it), and is positioned among that parent's existing children
  * accordingly. A sideways drag past `INDENT_THRESHOLD_PX` overrides this:
- * dragging right nests the note as the last child of the note now above it;
- * dragging left promotes it one or more levels up its former parent chain,
+ * dragging right nests the note as the last child of the note now above it
+ * if that's a folder, or of the folder holding that note if this note is
+ * sitting just below that folder's children; dragging left promotes it one or more levels up its former parent chain,
  * landing right after the ancestor branch it came from (never at the end
  * of the list).
  */
@@ -147,6 +148,18 @@ export function computeDragMove(
       beforeId: siblings[siblings.length - 1]?.id ?? null,
       afterId: null,
     };
+  }
+
+  // The row above is a note inside a folder this note isn't in yet (the note
+  // sits just below that folder's indented children). Being directly above,
+  // that row is the folder's last child, so this note joins the end of it.
+  if (
+    isPureHorizontalNudge &&
+    steps > 0 &&
+    prev &&
+    prev.parentId !== naturalParentId
+  ) {
+    return { newParentId: prev.parentId, beforeId: prev.id, afterId: null };
   }
 
   if (steps < 0) {

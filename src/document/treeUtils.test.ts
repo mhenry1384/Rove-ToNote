@@ -218,6 +218,49 @@ describe("computeDragMove", () => {
     });
   });
 
+  it("moves into the folder whose indented children are directly above when nudged right in place", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "folder", sortOrder: 1024, type: "folder" }),
+      note({ id: "f1", parentId: "folder", sortOrder: 1024 }),
+      note({ id: "f2", parentId: "folder", sortOrder: 2048 }),
+      note({ id: "x", sortOrder: 2048 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "x", "x", 30)).toEqual({
+      newParentId: "folder",
+      beforeId: "f2",
+      afterId: null,
+    });
+  });
+
+  it("moves into the innermost folder when the row above is nested several levels deep", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "outer", sortOrder: 1024, type: "folder" }),
+      note({ id: "inner", parentId: "outer", sortOrder: 1024, type: "folder" }),
+      note({ id: "deep", parentId: "inner", sortOrder: 1024 }),
+      note({ id: "x", sortOrder: 2048 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "x", "x", 30)).toEqual({
+      newParentId: "inner",
+      beforeId: "deep",
+      afterId: null,
+    });
+  });
+
+  it("is a no-op when nudged right in place and the row above is a non-folder sibling", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "folder", sortOrder: 1024, type: "folder" }),
+      note({ id: "f1", parentId: "folder", sortOrder: 1024 }),
+      note({ id: "f2", parentId: "folder", sortOrder: 2048 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "f2", "f2", 30)).toBeNull();
+  });
+
   it("outdents in place when nudged left without crossing into another row (over === active)", () => {
     const notes: NoteMeta[] = [
       note({ id: "a", sortOrder: 1024 }),
