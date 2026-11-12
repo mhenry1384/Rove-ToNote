@@ -3,11 +3,13 @@ import {
   useMemo,
   useRef,
   useState,
+  type ComponentPropsWithoutRef,
   type FocusEvent,
   type MouseEvent,
 } from "react";
 import { Maximize2, Minimize2, Plus, Trash2, Undo2 } from "lucide-react";
 import { linkify } from "./linkify";
+import { useTextareaCursorLine } from "./useTextareaCursorLine";
 import {
   parsePasswordGrid,
   serializePasswordGrid,
@@ -23,6 +25,21 @@ interface PasswordGridEditorProps {
 
 function emptyEntry(): PasswordEntry {
   return { id: crypto.randomUUID(), name: "", username: "", password: "", note: "" };
+}
+
+/** The note pane's textarea, with the caret-line highlight. Its own
+ * component because it mounts and unmounts as the pane switches to and from
+ * the linkified read view. */
+function NoteTextarea(props: ComponentPropsWithoutRef<"textarea"> & { value: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useTextareaCursorLine(ref, props.value);
+  return (
+    <textarea
+      {...props}
+      ref={ref}
+      className="password-grid__note-textarea cursor-line-textarea"
+    />
+  );
 }
 
 /** Grid of name/username/password rows for a "password grid" note, always
@@ -276,8 +293,7 @@ export function PasswordGridEditor({ noteId, content, onChange }: PasswordGridEd
             {linkify(selectedEntry.note, "password-grid__note-link")}
           </div>
         ) : (
-          <textarea
-            className="password-grid__note-textarea"
+          <NoteTextarea
             value={selectedEntry?.note ?? ""}
             disabled={!selectedEntry}
             autoFocus={editingNote}

@@ -8,6 +8,7 @@ import { wrapInHeadingCommand } from "@milkdown/kit/preset/commonmark";
 import { Fragment, Slice } from "@milkdown/kit/prose/model";
 import { $prose, $shortcut } from "@milkdown/kit/utils";
 import { createSpellCheckPlugin } from "./spellCheckPlugin";
+import { createCursorLinePlugin } from "./cursorLinePlugin";
 import { showSpellContextMenu, startSpellChecker } from "./spellContextMenu";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
@@ -29,6 +30,8 @@ const headingShortcuts = $shortcut((ctx) => {
 const spellCheck = $prose(() =>
   createSpellCheckPlugin((view, misspelling) => void showSpellContextMenu(view, misspelling)),
 );
+
+const cursorLine = $prose(() => createCursorLinePlugin());
 
 /** Material "mood" face, as an SVG string for Crepe's top bar. The class lets
  * us find the rendered button to anchor the picker popup to. */
@@ -188,6 +191,7 @@ export function MarkdownEditor({
     );
     crepe.editor.use(headingShortcuts);
     crepe.editor.use(spellCheck);
+    crepe.editor.use(cursorLine);
     startSpellChecker();
     crepe.editor.config((ctx) => {
       ctx.update(editorViewOptionsCtx, (prev) => ({

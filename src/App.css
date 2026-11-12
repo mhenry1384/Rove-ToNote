@@ -983,6 +983,28 @@ body {
   background: color-mix(in srgb, var(--accent), transparent 65%);
 }
 
+/* Background band on the line holding the caret (positioned by
+   cursorLinePlugin.ts). Only shown while the editor has focus. */
+.markdown-editor .milkdown .cursor-line-highlight {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent), transparent 90%);
+  visibility: hidden;
+}
+
+/* Colored notes keep dark text on a pastel background in both themes, so
+   use a neutral darkening instead of the accent tint (matching the other
+   rgba(0,0,0,…) shades those notes use). */
+.note-editor--colored .markdown-editor .milkdown .cursor-line-highlight {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.markdown-editor .milkdown .cursor-line-highlight:has(+ .ProseMirror-focused) {
+  visibility: visible;
+}
+
 /* Editor tokens: Alucard in light mode, Dracula in dark mode (see
    docs/color-schemes.md). Colored notes override these further up. */
 .markdown-editor .milkdown {
@@ -1798,6 +1820,28 @@ body {
   color: var(--accent);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Caret-line highlight for textareas (positioned by useTextareaCursorLine.ts;
+   same tint as the Notes-card highlight). The band is a background layer
+   attached to the scrolled content, painted only while focused. */
+.cursor-line-textarea {
+  line-height: 1.4;
+}
+
+.cursor-line-textarea:focus {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--accent), transparent 90%),
+    color-mix(in srgb, var(--accent), transparent 90%)
+  );
+  background-repeat: no-repeat;
+  background-attachment: local;
+  background-size: 100% var(--cursor-line-height, 0px);
+  background-position: 0 var(--cursor-line-top, 0px);
+}
+
+.note-editor--colored .cursor-line-textarea:focus {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.07), rgba(0, 0, 0, 0.07));
 }
 
 .password-grid__note-textarea:disabled {
