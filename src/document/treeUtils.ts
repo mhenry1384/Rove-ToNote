@@ -185,10 +185,13 @@ export function computeDragMove(
   // The row above is a note inside a folder this note isn't in yet (the note
   // sits just below that folder's indented children). Being directly above,
   // that row is the folder's last child, so this note joins the end of it.
+  // (Not when the row above is this note's own parent — i.e. it's already
+  // the first child — where it would wrongly jump out past the folder.)
   if (
     isPureHorizontalNudge &&
     steps > 0 &&
     prev &&
+    prev.id !== naturalParentId &&
     prev.parentId !== naturalParentId
   ) {
     return { newParentId: prev.parentId, beforeId: prev.id, afterId: null };

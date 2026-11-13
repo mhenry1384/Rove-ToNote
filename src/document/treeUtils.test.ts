@@ -321,6 +321,23 @@ describe("computeDragMove", () => {
     });
   });
 
+  it("stays put when a folder's first child is nudged right over its own slot", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "f", sortOrder: 1024, type: "folder" }),
+      note({ id: "x", parentId: "f", sortOrder: 1024 }),
+      note({ id: "s1", parentId: "f", sortOrder: 2048, type: "folder" }),
+      note({ id: "s2", parentId: "f", sortOrder: 3072, type: "folder" }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "x", "x", 30)).toEqual({
+      newParentId: "f",
+      beforeId: null,
+      afterId: "s1",
+      unchanged: true,
+    });
+  });
+
   it("outdents in place when nudged left without crossing into another row (over === active)", () => {
     const notes: NoteMeta[] = [
       note({ id: "a", sortOrder: 1024 }),
