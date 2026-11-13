@@ -142,7 +142,14 @@ export function TreeView() {
       return;
     }
     const move = computeMove(String(active.id), String(over.id), delta.x);
-    if (move) useDragPreviewStore.getState().setPreview(String(active.id), move);
+    if (move) {
+      const notes = useDocumentStore.getState().doc?.notes ?? [];
+      let depth = 0;
+      for (let p = move.newParentId; p; p = notes.find((n) => n.id === p)?.parentId ?? null) {
+        depth++;
+      }
+      useDragPreviewStore.getState().setPreview(String(active.id), move, depth);
+    }
     else useDragPreviewStore.getState().clear();
   }
 

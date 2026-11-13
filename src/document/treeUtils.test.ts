@@ -198,6 +198,20 @@ describe("computeDragMove", () => {
     expect(computeDragMove(notes, visible, "z", "f1")).toEqual(firstChild);
   });
 
+  it("stays an expanded folder's first child despite sideways drift or a right drag", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "f", sortOrder: 2048, type: "folder" }),
+      note({ id: "f1", parentId: "f", sortOrder: 1024 }),
+      note({ id: "f2", parentId: "f", sortOrder: 2048 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+    const firstChild = { newParentId: "f", beforeId: null, afterId: "f1" };
+
+    expect(computeDragMove(notes, visible, "a", "f", 15)).toEqual(firstChild);
+    expect(computeDragMove(notes, visible, "a", "f", 30)).toEqual(firstChild);
+  });
+
   it("nests under the note now directly above when dragged right past the threshold, if it's a folder", () => {
     const notes: NoteMeta[] = [
       note({ id: "a", sortOrder: 1024 }),

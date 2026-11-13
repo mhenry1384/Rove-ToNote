@@ -10,13 +10,17 @@ import type { DragMoveTarget } from "../document/treeUtils";
 interface DragPreviewState {
   activeId: string | null;
   move: DragMoveTarget | null;
-  setPreview: (activeId: string, move: DragMoveTarget) => void;
+  /** Nesting depth the note would land at (0 = top level), used to indent
+   * the drop line so it shows the level as well as the position. */
+  depth: number;
+  setPreview: (activeId: string, move: DragMoveTarget, depth: number) => void;
   clear: () => void;
 }
 
 export const useDragPreviewStore = create<DragPreviewState>((set) => ({
   activeId: null,
   move: null,
-  setPreview: (activeId, move) => set({ activeId, move }),
-  clear: () => set({ activeId: null, move: null }),
+  depth: 0,
+  setPreview: (activeId, move, depth) => set({ activeId, move, depth }),
+  clear: () => set({ activeId: null, move: null, depth: 0 }),
 }));

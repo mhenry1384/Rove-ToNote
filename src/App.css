@@ -351,6 +351,7 @@ body {
 .tree-view__list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 4px 0;
 }
 
@@ -391,12 +392,25 @@ body {
 
 /* Drag-drop position indicator (see useDragPreviewStore) */
 
-.tree-item__row--drop-below {
-  box-shadow: inset 0 -2px 0 0 var(--accent);
+/* Drop lines start at the indent of the level the note would land at. */
+.tree-item__row--drop-below::after,
+.tree-item__row--drop-above::after {
+  content: "";
+  position: absolute;
+  left: var(--drop-indent, 0);
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 1;
 }
 
-.tree-item__row--drop-above {
-  box-shadow: inset 0 2px 0 0 var(--accent);
+.tree-item__row--drop-below::after {
+  bottom: 0;
+}
+
+.tree-item__row--drop-above::after {
+  top: 0;
 }
 
 .tree-item--drop-below {
@@ -406,7 +420,7 @@ body {
 .tree-item--drop-below::after {
   content: "";
   position: absolute;
-  left: 0;
+  left: var(--drop-indent, 0);
   right: 0;
   bottom: 0;
   height: 2px;

@@ -139,7 +139,9 @@ export function computeDragMove(
   const newIndex = order.findIndex((v) => v.id === targetId);
   if (oldIndex === -1 || newIndex === -1) return null;
 
-  const steps = Math.round(horizontalDelta / INDENT_THRESHOLD_PX);
+  // Truncated, not rounded: a full threshold's worth of sideways movement is
+  // needed, so the drift of an ordinary up/down drag doesn't indent.
+  const steps = Math.trunc(horizontalDelta / INDENT_THRESHOLD_PX);
 
   // A sideways-only nudge (still hovering its own row) doesn't reorder —
   // it just tries to indent/outdent the note where it already sits.
@@ -165,6 +167,8 @@ export function computeDragMove(
   if (
     steps > 0 &&
     prev &&
+    // Already landing as this expanded folder's first child — keep that.
+    prev.id !== naturalParentId &&
     !isSelfOrDescendant(notes, activeId, prev.id) &&
     notes.find((n) => n.id === prev.id)?.type === "folder"
   ) {

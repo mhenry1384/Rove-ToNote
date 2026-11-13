@@ -112,10 +112,13 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
     [setDraggableNodeRef],
   );
   // Only the visual offset is limited: drop targeting still follows the
-  // pointer, so letting go below the list still lands at the end of it.
+  // pointer, so letting go below the list still lands at the end of it. The
+  // item only moves vertically — following the pointer sideways pushed it
+  // past the pane's right edge and grew a horizontal scrollbar. Sideways
+  // drags (indent/outdent) show up as the drop line's indent instead.
   const limitedTransform =
     isDragging && transform && itemRef.current
-      ? { ...transform, y: Math.min(transform.y, maxDragOffsetY(itemRef.current)) }
+      ? { ...transform, x: 0, y: Math.min(transform.y, maxDragOffsetY(itemRef.current)) }
       : transform;
   const dragStyle: React.CSSProperties = {
     // Translate only: dnd-kit scales the dragged item to the size of the
@@ -258,20 +261,22 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
   // "below" on an expanded folder means after its whole subtree, so the line
   // goes under its last visible child rather than between it and its first.
   const dropBelowSubtree = dropIndicator === "below" && hasChildren && isExpanded;
+  const dropDepth = useDragPreviewStore((s) => s.depth);
+  const dropIndent = { "--drop-indent": `${4 + dropDepth * 14}px` } as React.CSSProperties;
   const rowDropIndicator = dropBelowSubtree ? "none" : dropIndicator;
 
   return (
     <div
       className={`tree-item${isDragging ? " tree-item--dragging" : ""}${dropBelowSubtree ? " tree-item--drop-below" : ""}`}
       ref={setItemRef}
-      style={dragStyle}
+      style={dropBelowSubtree ? { ...dragStyle, ...dropIndent } : dragStyle}
     >
       <div
         ref={setDroppableNodeRef}
         {...attributes}
         {...listeners}
         className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}${rowDropIndicator !== "none" ? ` tree-item__row--drop-${rowDropIndicator}` : ""}`}
-        style={{ paddingLeft: 4 + depth * 14 }}
+        style={{ paddingLeft: 4 + depth * 14, ...(rowDropIndicator !== "none" ? dropIndent : {}) }}
         tabIndex={0}
         role="treeitem"
         aria-selected={isSelected}
