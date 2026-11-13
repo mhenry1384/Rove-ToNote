@@ -108,7 +108,10 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
       ? { ...transform, y: Math.min(transform.y, maxDragOffsetY(itemRef.current)) }
       : transform;
   const dragStyle: React.CSSProperties = {
-    transform: CSS.Transform.toString(limitedTransform),
+    // Translate only: dnd-kit scales the dragged item to the size of the
+    // item it's over, and an expanded folder's rect includes its children,
+    // so a full transform stretched the dragged row many times its height.
+    transform: CSS.Translate.toString(limitedTransform),
     transition,
     position: isDragging ? "relative" : undefined,
     zIndex: isDragging ? 10 : undefined,
