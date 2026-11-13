@@ -402,7 +402,7 @@ body {
   height: 2px;
   background: var(--accent);
   pointer-events: none;
-  z-index: 1;
+  z-index: 11; /* above the dragged item (z-index 10), which otherwise hides the line when hovering its own slot */
 }
 
 .tree-item__row--drop-below::after {
@@ -426,7 +426,7 @@ body {
   height: 2px;
   background: var(--accent);
   pointer-events: none;
-  z-index: 1;
+  z-index: 11;
 }
 
 .tree-item__row--drop-inside {
