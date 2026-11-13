@@ -149,12 +149,53 @@ describe("computeDragMove", () => {
     });
   });
 
-  it("returns null for a no-op drag (dropped on itself or an unknown id)", () => {
-    const notes: NoteMeta[] = [note({ id: "a", sortOrder: 1024 })];
+  it("returns the current slot, marked unchanged, when dropped on itself", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "b", sortOrder: 2048 }),
+      note({ id: "c", sortOrder: 3072 }),
+    ];
     const visible = flattenVisibleTree(buildTree(notes), () => true);
 
-    expect(computeDragMove(notes, visible, "a", "a")).toBeNull();
+    expect(computeDragMove(notes, visible, "b", "b")).toEqual({
+      newParentId: null,
+      beforeId: "a",
+      afterId: "c",
+      unchanged: true,
+    });
     expect(computeDragMove(notes, visible, "a", "missing")).toBeNull();
+  });
+
+  it("treats a drop on one of its own descendants as a drop on itself", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "f", sortOrder: 1024, type: "folder" }),
+      note({ id: "f1", parentId: "f", sortOrder: 1024 }),
+      note({ id: "b", sortOrder: 2048 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+
+    expect(computeDragMove(notes, visible, "f", "f1")).toEqual({
+      newParentId: null,
+      beforeId: null,
+      afterId: "b",
+      unchanged: true,
+    });
+  });
+
+  it("becomes an expanded folder's first child when dropped between the folder and its first child", () => {
+    const notes: NoteMeta[] = [
+      note({ id: "a", sortOrder: 1024 }),
+      note({ id: "f", sortOrder: 2048, type: "folder" }),
+      note({ id: "f1", parentId: "f", sortOrder: 1024 }),
+      note({ id: "f2", parentId: "f", sortOrder: 2048 }),
+      note({ id: "z", sortOrder: 3072 }),
+    ];
+    const visible = flattenVisibleTree(buildTree(notes), () => true);
+    const firstChild = { newParentId: "f", beforeId: null, afterId: "f1" };
+
+    // Dragging down onto the folder row, or up onto its first child.
+    expect(computeDragMove(notes, visible, "a", "f")).toEqual(firstChild);
+    expect(computeDragMove(notes, visible, "z", "f1")).toEqual(firstChild);
   });
 
   it("nests under the note now directly above when dragged right past the threshold, if it's a folder", () => {
@@ -258,7 +299,12 @@ describe("computeDragMove", () => {
     ];
     const visible = flattenVisibleTree(buildTree(notes), () => true);
 
-    expect(computeDragMove(notes, visible, "f2", "f2", 30)).toBeNull();
+    expect(computeDragMove(notes, visible, "f2", "f2", 30)).toEqual({
+      newParentId: "folder",
+      beforeId: "f1",
+      afterId: null,
+      unchanged: true,
+    });
   });
 
   it("outdents in place when nudged left without crossing into another row (over === active)", () => {
@@ -283,6 +329,11 @@ describe("computeDragMove", () => {
     ];
     const visible = flattenVisibleTree(buildTree(notes), () => true);
 
-    expect(computeDragMove(notes, visible, "b", "b", 5)).toBeNull();
+    expect(computeDragMove(notes, visible, "b", "b", 5)).toEqual({
+      newParentId: null,
+      beforeId: "a",
+      afterId: null,
+      unchanged: true,
+    });
   });
 });

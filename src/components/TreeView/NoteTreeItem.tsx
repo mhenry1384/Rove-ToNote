@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, FileText, Folder, KeyRound, ListChecks, Lock, MoreHorizontal } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -93,14 +93,24 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
   }, [node.id, node.type, node.isEncrypted, node.content, isUnlocked, vaultKey]);
 
   const {
-    setNodeRef,
-    node: itemRef,
+    setDraggableNodeRef,
+    setDroppableNodeRef,
     attributes,
     listeners,
     transform,
     transition,
     isDragging,
   } = useSortable({ id: node.id, disabled: isEditing || isFiltering });
+  // The whole item (with its subtree) is what's dragged; only its own row is
+  // a drop target — see TreeView's collision detection.
+  const itemRef = useRef<HTMLDivElement | null>(null);
+  const setItemRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      itemRef.current = el;
+      setDraggableNodeRef(el);
+    },
+    [setDraggableNodeRef],
+  );
   // Only the visual offset is limited: drop targeting still follows the
   // pointer, so letting go below the list still lands at the end of it.
   const limitedTransform =
@@ -245,12 +255,22 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
     openMenu();
   }
 
+  // "below" on an expanded folder means after its whole subtree, so the line
+  // goes under its last visible child rather than between it and its first.
+  const dropBelowSubtree = dropIndicator === "below" && hasChildren && isExpanded;
+  const rowDropIndicator = dropBelowSubtree ? "none" : dropIndicator;
+
   return (
-    <div className={`tree-item${isDragging ? " tree-item--dragging" : ""}`} ref={setNodeRef} style={dragStyle}>
+    <div
+      className={`tree-item${isDragging ? " tree-item--dragging" : ""}${dropBelowSubtree ? " tree-item--drop-below" : ""}`}
+      ref={setItemRef}
+      style={dragStyle}
+    >
       <div
+        ref={setDroppableNodeRef}
         {...attributes}
         {...listeners}
-        className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}${dropIndicator !== "none" ? ` tree-item__row--drop-${dropIndicator}` : ""}`}
+        className={`tree-item__row${isSelected ? " tree-item__row--selected" : ""}${isMenuOpen ? " tree-item__row--menu-open" : ""}${rowDropIndicator !== "none" ? ` tree-item__row--drop-${rowDropIndicator}` : ""}`}
         style={{ paddingLeft: 4 + depth * 14 }}
         tabIndex={0}
         role="treeitem"

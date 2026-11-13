@@ -58,6 +58,25 @@ export interface DragMoveTarget {
   newParentId: string | null;
   beforeId: string | null;
   afterId: string | null;
+  /** Set when the target is exactly where the note already is — shown as a
+   * drop indicator so the user can see a drop there is allowed, but dropping
+   * shouldn't touch the document. */
+  unchanged?: true;
+}
+
+/** The dragged note's current slot, as a DragMoveTarget. */
+function currentPosition(notes: NoteMeta[], activeId: string): DragMoveTarget {
+  const parentId = notes.find((n) => n.id === activeId)?.parentId ?? null;
+  const siblings = notes
+    .filter((n) => n.parentId === parentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const index = siblings.findIndex((s) => s.id === activeId);
+  return {
+    newParentId: parentId,
+    beforeId: siblings[index - 1]?.id ?? null,
+    afterId: siblings[index + 1]?.id ?? null,
+    unchanged: true,
+  };
 }
 
 /** How far (in px) the pointer must move horizontally, past the natural
@@ -95,7 +114,10 @@ function arrayMove<T>(array: T[], from: number, to: number): T[] {
  * By default it adopts the parent of whichever note ends up directly above
  * it (or, if dropped at the very top, the parent of the note now directly
  * below it), and is positioned among that parent's existing children
- * accordingly. A sideways drag past `INDENT_THRESHOLD_PX` overrides this:
+ * accordingly. Dropped between an expanded folder and its first child, it
+ * becomes that folder's first child. Dropped on itself (or on one of its own
+ * descendants, which travel with it), it stays put — returned with
+ * `unchanged` so the indicator still shows. A sideways drag past `INDENT_THRESHOLD_PX` overrides this:
  * dragging right nests the note as the last child of the note now above it
  * if that's a folder, or of the folder holding that note if this note is
  * sitting just below that folder's children; dragging left promotes it one or more levels up its former parent chain,
@@ -109,8 +131,12 @@ export function computeDragMove(
   overId: string,
   horizontalDelta = 0,
 ): DragMoveTarget | null {
-  const oldIndex = visible.findIndex((v) => v.id === activeId);
-  const newIndex = visible.findIndex((v) => v.id === overId);
+  // The dragged note's descendants move with it, so they aren't drop slots.
+  const activeSubtree = collectSubtreeIds(notes, activeId);
+  const order = visible.filter((v) => v.id === activeId || !activeSubtree.has(v.id));
+  const targetId = activeSubtree.has(overId) ? activeId : overId;
+  const oldIndex = order.findIndex((v) => v.id === activeId);
+  const newIndex = order.findIndex((v) => v.id === targetId);
   if (oldIndex === -1 || newIndex === -1) return null;
 
   const steps = Math.round(horizontalDelta / INDENT_THRESHOLD_PX);
@@ -118,20 +144,22 @@ export function computeDragMove(
   // A sideways-only nudge (still hovering its own row) doesn't reorder —
   // it just tries to indent/outdent the note where it already sits.
   const isPureHorizontalNudge = oldIndex === newIndex;
-  if (isPureHorizontalNudge && steps === 0) return null;
+  if (isPureHorizontalNudge && steps === 0) return currentPosition(notes, activeId);
 
   let prev: VisibleTreeNode | null;
   let naturalParentId: string | null;
 
   if (isPureHorizontalNudge) {
-    prev = visible[oldIndex - 1] ?? null;
+    prev = order[oldIndex - 1] ?? null;
     naturalParentId = notes.find((n) => n.id === activeId)?.parentId ?? null;
   } else {
-    const reordered = arrayMove(visible, oldIndex, newIndex);
+    const reordered = arrayMove(order, oldIndex, newIndex);
     const movedPos = reordered.findIndex((v) => v.id === activeId);
     prev = reordered[movedPos - 1] ?? null;
     const next = reordered[movedPos + 1] ?? null;
-    naturalParentId = prev ? prev.parentId : (next?.parentId ?? null);
+    // Between an expanded folder and its first child → inside that folder.
+    if (prev && next && next.parentId === prev.id) naturalParentId = prev.id;
+    else naturalParentId = prev ? prev.parentId : (next?.parentId ?? null);
   }
 
   if (
@@ -188,13 +216,13 @@ export function computeDragMove(
 
   // No vertical move happened and the horizontal nudge didn't clear an
   // indent/outdent threshold (or hit a boundary) — nothing to do.
-  if (isPureHorizontalNudge) return null;
+  if (isPureHorizontalNudge) return currentPosition(notes, activeId);
 
   const siblings = notes
     .filter((n) => n.parentId === naturalParentId && n.id !== activeId)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  if (!prev) {
+  if (!prev || prev.id === naturalParentId) {
     return { newParentId: naturalParentId, beforeId: null, afterId: siblings[0]?.id ?? null };
   }
 

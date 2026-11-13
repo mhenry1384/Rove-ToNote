@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   closestCenter,
+  pointerWithin,
+  type CollisionDetection,
   DndContext,
   PointerSensor,
   useSensor,
@@ -40,6 +42,15 @@ import { RecentlyDeleted } from "./RecentlyDeleted";
 // the drag; a drop-position indicator (rendered by NoteTreeItem, driven by
 // useDragPreviewStore below) shows exactly where it will land.
 const noSortingPreview: SortingStrategy = () => null;
+
+// Each row (not its whole subtree) is a drop target, and the row under the
+// pointer wins — so hovering a folder's row targets the folder, not one of
+// its children. Falls back to the nearest row when the pointer is outside
+// the list (e.g. dragged past the end).
+const pointerThenClosest: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length > 0 ? hits : closestCenter(args);
+};
 
 export function TreeView() {
   const notes = useDocumentStore((s) => s.doc?.notes);
@@ -140,7 +151,7 @@ export function TreeView() {
     const { active, over, delta } = event;
     if (!over) return;
     const move = computeMove(String(active.id), String(over.id), delta.x);
-    if (move) {
+    if (move && !move.unchanged) {
       useDocumentStore
         .getState()
         .moveNote(String(active.id), move.newParentId, move.beforeId, move.afterId);
@@ -163,7 +174,7 @@ export function TreeView() {
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={pointerThenClosest}
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
