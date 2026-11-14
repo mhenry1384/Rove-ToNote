@@ -11,11 +11,12 @@ import { createSpellCheckPlugin } from "./spellCheckPlugin";
 import { createCursorLinePlugin } from "./cursorLinePlugin";
 import { showSpellContextMenu, startSpellChecker } from "./spellContextMenu";
 import { createTableContextMenuPlugin } from "./tableContextMenu";
+import { deleteLine } from "./deleteLine";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 
 /** Ctrl/Cmd-1, -2, -3 set the current block to H1/H2/H3, in addition to
- * Crepe's built-in Ctrl/Cmd-Alt-{1-6}. */
+ * Crepe's built-in Ctrl/Cmd-Alt-{1-6}. Ctrl/Cmd-L deletes the current line. */
 const headingShortcuts = $shortcut((ctx) => {
   const setHeading = (level: number) => () => {
     ctx.get(commandsCtx).call(wrapInHeadingCommand.key, level);
@@ -25,6 +26,7 @@ const headingShortcuts = $shortcut((ctx) => {
     "Mod-1": setHeading(1),
     "Mod-2": setHeading(2),
     "Mod-3": setHeading(3),
+    "Mod-l": deleteLine,
   };
 });
 
