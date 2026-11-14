@@ -10,6 +10,7 @@ import { $prose, $shortcut } from "@milkdown/kit/utils";
 import { createSpellCheckPlugin } from "./spellCheckPlugin";
 import { createCursorLinePlugin } from "./cursorLinePlugin";
 import { showSpellContextMenu, startSpellChecker } from "./spellContextMenu";
+import { createTableContextMenuPlugin } from "./tableContextMenu";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 
@@ -32,6 +33,8 @@ const spellCheck = $prose(() =>
 );
 
 const cursorLine = $prose(() => createCursorLinePlugin());
+
+const tableContextMenu = $prose((ctx) => createTableContextMenuPlugin(ctx));
 
 /** Material "mood" face, as an SVG string for Crepe's top bar. The class lets
  * us find the rendered button to anchor the picker popup to. */
@@ -192,6 +195,8 @@ export function MarkdownEditor({
     crepe.editor.use(headingShortcuts);
     crepe.editor.use(spellCheck);
     crepe.editor.use(cursorLine);
+    // After spellCheck, so a misspelling's menu wins inside a table cell.
+    crepe.editor.use(tableContextMenu);
     startSpellChecker();
     crepe.editor.config((ctx) => {
       ctx.update(editorViewOptionsCtx, (prev) => ({
