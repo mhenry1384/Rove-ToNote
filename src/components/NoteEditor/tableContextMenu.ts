@@ -8,7 +8,14 @@ import {
   addRowBeforeCommand,
 } from "@milkdown/kit/preset/gfm";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/kit/prose/state";
-import { CellSelection, deleteColumn, deleteRow } from "@milkdown/kit/prose/tables";
+import { Fragment, type Node } from "@milkdown/kit/prose/model";
+import {
+  CellSelection,
+  deleteColumn,
+  deleteRow,
+  isInTable,
+  selectedRect,
+} from "@milkdown/kit/prose/tables";
 import type { EditorView } from "@milkdown/kit/prose/view";
 
 // Closed when the next one opens, not after `popup()` returns, since the
@@ -23,6 +30,35 @@ function tableRowAt(view: EditorView, pos: number) {
     if (name === "table_row" || name === "table_header_row") return name;
   }
   return null;
+}
+
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+/** Sorts the table's body rows by the selected column; the header row (always
+ * the first row in a GFM table) stays on top. Empty cells sort last either way. */
+function sortByColumn(view: EditorView, direction: 1 | -1): void {
+  const { state } = view;
+  if (!isInTable(state)) return;
+  const { table, tableStart, left: col } = selectedRect(state);
+  if (table.childCount < 3) return;
+
+  const header = table.child(0);
+  const body: Node[] = [];
+  for (let i = 1; i < table.childCount; i++) body.push(table.child(i));
+  const key = (row: Node) =>
+    col < row.childCount ? row.child(col).textContent.trim() : "";
+
+  const sorted = body
+    .map((row, index) => ({ row, index, key: key(row) }))
+    .sort((a, b) => {
+      if (!a.key !== !b.key) return a.key ? -1 : 1;
+      return direction * collator.compare(a.key, b.key) || a.index - b.index;
+    });
+  if (sorted.every((entry, i) => entry.index === i)) return;
+
+  const from = tableStart + header.nodeSize;
+  const to = tableStart + table.content.size;
+  view.dispatch(state.tr.replaceWith(from, to, Fragment.from(sorted.map((e) => e.row))));
 }
 
 async function showTableContextMenu(ctx: Ctx, view: EditorView, isHeaderRow: boolean) {
@@ -54,6 +90,15 @@ async function showTableContextMenu(ctx: Ctx, view: EditorView, isHeaderRow: boo
     await MenuItem.new({
       text: "Delete Column",
       action: run(() => deleteColumn(view.state, view.dispatch)),
+    }),
+    await PredefinedMenuItem.new({ item: "Separator" }),
+    await MenuItem.new({
+      text: "Sort Column Ascending",
+      action: run(() => sortByColumn(view, 1)),
+    }),
+    await MenuItem.new({
+      text: "Sort Column Descending",
+      action: run(() => sortByColumn(view, -1)),
     }),
   ];
 
