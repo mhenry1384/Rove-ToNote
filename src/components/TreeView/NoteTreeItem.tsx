@@ -239,6 +239,9 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
       onIndent: indent,
       onOutdent: outdent,
       onEditBackgroundImage: () => setIsImageModalOpen(true),
+      onExpand: () => {
+        if (key) void usePrefsStore.getState().setExpanded(key, node.id, true);
+      },
       at,
     })
       .catch((err) => console.error("Failed to show note menu", err))

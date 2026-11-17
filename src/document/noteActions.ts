@@ -2,7 +2,7 @@ import { useDocumentStore } from "./documentStore";
 import { parseTodoMarkdown } from "./todoMarkdown";
 import { parsePasswordGrid } from "./passwordGrid";
 import { collectSubtreeIds } from "./treeUtils";
-import type { NoteMeta } from "./types";
+import type { NoteMeta, NoteType } from "./types";
 import { useSelectionStore } from "../stores/useSelectionStore";
 import { useToastStore } from "../stores/useToastStore";
 import { useVaultStore } from "../stores/useVaultStore";
@@ -26,6 +26,35 @@ export function isNoteEmpty(note: NoteMeta, allNotes: NoteMeta[]): boolean {
     return parsePasswordGrid(note.content).entries.length === 0;
   }
   return note.content.trim() === "";
+}
+
+export const NEW_NOTE_TITLES: Record<NoteType, string> = {
+  markdown: "New Note",
+  todo: "New To-Do List",
+  folder: "New Folder",
+  "password-grid": "New Password Grid",
+};
+
+/** Adds a new note of `type` at the bottom of `parentId`'s children (null =
+ * top level), selected and ready to rename. If an untouched one with the
+ * default title is already there, reuses it instead of piling up blanks. */
+export function addNoteWithRename(parentId: string | null, type: NoteType): void {
+  const doc = useDocumentStore.getState().doc;
+  if (!doc) return;
+  const title = NEW_NOTE_TITLES[type];
+  const existingBlank = doc.notes.find(
+    (n) =>
+      n.parentId === parentId &&
+      n.type === type &&
+      n.title === title &&
+      isNoteEmpty(n, doc.notes),
+  );
+  if (existingBlank) {
+    useSelectionStore.getState().selectAndRename(existingBlank.id);
+    return;
+  }
+  const note = useDocumentStore.getState().createNote(parentId, title, type);
+  useSelectionStore.getState().selectAndRename(note.id);
 }
 
 /** Deletes a note (and its children — refused for a non-empty folder),

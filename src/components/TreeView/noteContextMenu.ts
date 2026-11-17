@@ -2,7 +2,9 @@ import { Menu, MenuItem, IconMenuItem, PredefinedMenuItem, Submenu } from "@taur
 import { Image } from "@tauri-apps/api/image";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { useDocumentStore } from "../../document/documentStore";
+import type { NoteType } from "../../document/types";
 import {
+  addNoteWithRename,
   deleteNoteWithUndo,
   decryptNote,
   encryptNote,
@@ -19,6 +21,8 @@ export interface NoteContextMenuOptions {
   onIndent: () => void;
   onOutdent: () => void;
   onEditBackgroundImage: () => void;
+  /** Opens this folder so a newly added child is visible. */
+  onExpand: () => void;
   /** Window-relative (CSS px) point to open at; omitted = at the cursor. */
   at?: { x: number; y: number };
 }
@@ -76,9 +80,20 @@ export async function showNoteContextMenu(opts: NoteContextMenuOptions): Promise
   const folderEncryption = node.type === "folder" ? folderEncryptionState(notes, node.id) : null;
   const separator = () => PredefinedMenuItem.new({ item: "Separator" });
 
-  const items: (MenuItem | Submenu | PredefinedMenuItem)[] = [
-    await MenuItem.new({ text: "Rename", action: opts.onRename }),
-  ];
+  const items: (MenuItem | Submenu | PredefinedMenuItem)[] = [];
+  if (node.type === "folder") {
+    const add = (type: NoteType) => () => {
+      opts.onExpand();
+      addNoteWithRename(node.id, type);
+    };
+    items.push(
+      await MenuItem.new({ text: "New Note", action: add("markdown") }),
+      await MenuItem.new({ text: "New To-Do List", action: add("todo") }),
+      await MenuItem.new({ text: "New Password Grid", action: add("password-grid") }),
+      await separator(),
+    );
+  }
+  items.push(await MenuItem.new({ text: "Rename", action: opts.onRename }));
   if (canDelete) {
     items.push(await MenuItem.new({ text: "Delete", action: () => deleteNoteWithUndo(node.id) }));
   }
