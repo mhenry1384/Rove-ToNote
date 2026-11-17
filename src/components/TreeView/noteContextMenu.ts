@@ -1,6 +1,6 @@
 import { Menu, MenuItem, IconMenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
+import { popupMenu } from "../../menu/popupMenu";
 import { Image } from "@tauri-apps/api/image";
-import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { useDocumentStore } from "../../document/documentStore";
 import type { NoteType } from "../../document/types";
 import {
@@ -65,10 +65,6 @@ function swatchIcon(hex: string | null, selected: boolean): Promise<Image> {
   }
   return cached;
 }
-
-// The previous popup's menu, closed when the next one opens. Not closed right
-// after `popup()` returns, since the clicked item's action can arrive later.
-let lastMenu: Menu | null = null;
 
 /** The tree row's actions menu, shared by the "…" button and right-click.
  * Native rather than HTML so it can extend past the narrow tree pane. */
@@ -161,8 +157,5 @@ export async function showNoteContextMenu(opts: NoteContextMenuOptions): Promise
   items.push(await Submenu.new({ text: "Background Image", items: imageItems }));
 
   const menu = await Menu.new({ items });
-  const previous = lastMenu;
-  lastMenu = menu;
-  if (previous) void previous.close();
-  await menu.popup(opts.at ? new LogicalPosition(opts.at.x, opts.at.y) : undefined);
+  await popupMenu(menu, opts.at);
 }

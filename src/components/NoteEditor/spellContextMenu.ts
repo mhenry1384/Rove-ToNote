@@ -1,4 +1,5 @@
 import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
+import { popupMenu } from "../../menu/popupMenu";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { usePrefsStore } from "../../stores/usePrefsStore";
 import { replaceMisspelling, type Misspelling } from "./spellCheckPlugin";
@@ -15,10 +16,6 @@ export function startSpellChecker(): void {
   }
   void loadSpellChecker();
 }
-
-// Closed when the next one opens, not after `popup()` returns, since the
-// clicked item's action can arrive later.
-let lastMenu: Menu | null = null;
 
 export async function showSpellContextMenu(
   view: EditorView,
@@ -45,8 +42,5 @@ export async function showSpellContextMenu(
   );
 
   const menu = await Menu.new({ items });
-  const previous = lastMenu;
-  lastMenu = menu;
-  if (previous) void previous.close();
-  await menu.popup();
+  await popupMenu(menu);
 }

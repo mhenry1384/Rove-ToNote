@@ -1,4 +1,5 @@
 import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
+import { popupMenu } from "../../menu/popupMenu";
 import { commandsCtx, type CmdKey } from "@milkdown/kit/core";
 import type { Ctx } from "@milkdown/kit/ctx";
 import {
@@ -17,10 +18,6 @@ import {
   selectedRect,
 } from "@milkdown/kit/prose/tables";
 import type { EditorView } from "@milkdown/kit/prose/view";
-
-// Closed when the next one opens, not after `popup()` returns, since the
-// clicked item's action can arrive later.
-let lastMenu: Menu | null = null;
 
 /** The row containing `pos`, if it lies inside a table. */
 function tableRowAt(view: EditorView, pos: number) {
@@ -103,10 +100,7 @@ async function showTableContextMenu(ctx: Ctx, view: EditorView, isHeaderRow: boo
   ];
 
   const menu = await Menu.new({ items });
-  const previous = lastMenu;
-  lastMenu = menu;
-  if (previous) void previous.close();
-  await menu.popup();
+  await popupMenu(menu);
 }
 
 /** Right-clicking a table cell offers to insert or delete rows and columns. */
