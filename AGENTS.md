@@ -2,6 +2,7 @@
 
 - Work directly on the `main` branch. Do not create feature branches; commit features straight
   to `main`.
+- After making a change, commit it to `main` and push it to the remote without asking.
 - Do not monitor or watch the running app (dev server, Tauri process, etc.) — the user monitors it themselves.
 - Do not use the dev app (`npm run tauri dev`) unless the user asks for it.
 - After making a code change, automatically do a release build (see the release build rules
