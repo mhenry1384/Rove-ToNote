@@ -6,6 +6,12 @@ import { useVaultStore } from "../../stores/useVaultStore";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { TodoEditor } from "./TodoEditor";
 import { PasswordGridEditor } from "./PasswordGridEditor";
+import {
+  contrastingMutedColors,
+  hexLuminance,
+  useImageLuminance,
+  useThemeBgLuminance,
+} from "./useImageLuminance";
 import { noteColorBg, DEFAULT_BACKGROUND_IMAGE_OPACITY, NOTE_TEXT_COLOR } from "../../document/noteColors";
 import {
   decryptString,
@@ -57,6 +63,9 @@ export function NoteEditor() {
     note && decryptedState?.noteId === note.id ? decryptedState.plaintext : null;
   const decryptFailed = note ? decryptFailedFor === note.id : false;
 
+  const imageLum = useImageLuminance(note?.backgroundImageUrl);
+  const themeBgLum = useThemeBgLuminance();
+
   if (!note) {
     return (
       <div className="note-editor note-editor--empty">
@@ -66,18 +75,36 @@ export function NoteEditor() {
   }
 
   const colorBg = noteColorBg(note.color);
-  const wrapperStyle = colorBg
-    ? ({
-        background: colorBg,
-        color: NOTE_TEXT_COLOR,
-        "--note-color-bg": colorBg,
-      } as React.CSSProperties)
-    : undefined;
+  const imageOpacity = note.backgroundImageOpacity ?? DEFAULT_BACKGROUND_IMAGE_OPACITY;
+  // With a background image, pick contrasting colors for the small muted
+  // controls (unset flag, notes icon, "Add note") from the image's average
+  // luminance blended over whatever is underneath it.
+  const imageContrastVars =
+    note.backgroundImageUrl && imageLum !== null
+      ? (() => {
+          const baseLum = (colorBg ? hexLuminance(colorBg) : null) ?? themeBgLum;
+          const { muted, hover } = contrastingMutedColors(
+            imageOpacity * imageLum + (1 - imageOpacity) * baseLum,
+          );
+          return { "--on-image-muted": muted, "--on-image-hover": hover };
+        })()
+      : undefined;
+  const wrapperStyle =
+    colorBg || imageContrastVars
+      ? ({
+          ...(colorBg && {
+            background: colorBg,
+            color: NOTE_TEXT_COLOR,
+            "--note-color-bg": colorBg,
+          }),
+          ...imageContrastVars,
+        } as React.CSSProperties)
+      : undefined;
   const wrapperClass = `note-editor${colorBg ? " note-editor--colored" : ""}`;
   const bgImageStyle: React.CSSProperties | undefined = note.backgroundImageUrl
     ? {
         backgroundImage: `url("${note.backgroundImageUrl.replace(/"/g, "%22")}")`,
-        opacity: note.backgroundImageOpacity ?? DEFAULT_BACKGROUND_IMAGE_OPACITY,
+        opacity: imageOpacity,
       }
     : undefined;
   const bgImage = bgImageStyle && <div className="note-editor__bg-image" style={bgImageStyle} />;

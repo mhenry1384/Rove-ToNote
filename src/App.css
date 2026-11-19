@@ -1461,6 +1461,24 @@ body {
   color: var(--text);
 }
 
+/* Over a background image, NoteEditor sets --on-image-muted/--on-image-hover
+   to colors that contrast with the image. */
+.todo-item__notes-indicator,
+.todo-item-notes__add {
+  color: var(--on-image-muted, var(--text-muted));
+}
+
+.todo-item__notes-indicator:hover,
+.todo-item-notes__add:hover:not(:disabled) {
+  color: var(--on-image-hover, var(--text));
+}
+
+/* Popup menus have their own background, so they keep the theme colors. */
+.note-menu {
+  --on-image-muted: initial;
+  --on-image-hover: initial;
+}
+
 .todo-item-notes {
   display: flex;
   flex-direction: column;
@@ -1523,7 +1541,6 @@ body {
 }
 
 .todo-item-notes__add:disabled {
-  color: var(--text-muted);
   opacity: 0.5;
   cursor: not-allowed;
 }
