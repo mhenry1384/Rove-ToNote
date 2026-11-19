@@ -1883,3 +1883,8 @@ body {
   text-decoration-skip-ink: none;
   text-underline-offset: 2px;
 }
+
+/* Long link labels in markdown notes are cut off after 50 characters. */
+.markdown-editor .milkdown .ProseMirror .link-label-hidden {
+  display: none;
+}

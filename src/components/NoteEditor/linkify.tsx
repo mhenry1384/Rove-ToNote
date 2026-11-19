@@ -1,6 +1,15 @@
 import { Fragment, type ReactNode } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
+/** Links longer than this show only their first characters plus an ellipsis. */
+export const MAX_LINK_LABEL_LENGTH = 50;
+
+export function truncateLinkLabel(label: string): string {
+  return label.length > MAX_LINK_LABEL_LENGTH
+    ? `${label.slice(0, MAX_LINK_LABEL_LENGTH)}…`
+    : label;
+}
+
 const URL_PATTERN = /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi;
 
 export function containsUrl(text: string): boolean {
@@ -31,7 +40,7 @@ export function linkify(text: string, linkClassName: string): ReactNode[] {
           openUrl(href).catch((err) => console.error("Failed to open URL", err));
         }}
       >
-        {raw}
+        {truncateLinkLabel(raw)}
       </a>,
     );
     last = start + raw.length;

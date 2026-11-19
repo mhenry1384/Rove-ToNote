@@ -9,6 +9,7 @@ import { Fragment, Slice } from "@milkdown/kit/prose/model";
 import { $prose, $shortcut } from "@milkdown/kit/utils";
 import { createSpellCheckPlugin } from "./spellCheckPlugin";
 import { createCursorLinePlugin } from "./cursorLinePlugin";
+import { createLinkTruncatePlugin } from "./linkTruncatePlugin";
 import { showSpellContextMenu, startSpellChecker } from "./spellContextMenu";
 import { createTableContextMenuPlugin } from "./tableContextMenu";
 import { deleteLine } from "./deleteLine";
@@ -35,6 +36,8 @@ const spellCheck = $prose(() =>
 );
 
 const cursorLine = $prose(() => createCursorLinePlugin());
+
+const linkTruncate = $prose(() => createLinkTruncatePlugin());
 
 const tableContextMenu = $prose((ctx) => createTableContextMenuPlugin(ctx));
 
@@ -197,6 +200,7 @@ export function MarkdownEditor({
     crepe.editor.use(headingShortcuts);
     crepe.editor.use(spellCheck);
     crepe.editor.use(cursorLine);
+    crepe.editor.use(linkTruncate);
     // After spellCheck, so a misspelling's menu wins inside a table cell.
     crepe.editor.use(tableContextMenu);
     startSpellChecker();
