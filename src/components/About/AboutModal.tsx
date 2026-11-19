@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAboutStore } from "../../stores/useAboutStore";
-import { version as appVersion } from "../../../package.json";
+import { version as packageVersion } from "../../../package.json";
 import appIcon from "../../assets/app-icon.svg";
+
+const appVersion = packageVersion.split(".")[0];
 
 const GITHUB_URL = "https://github.com/mhenry1384";
 

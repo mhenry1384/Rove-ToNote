@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message } from "@tauri-apps/plugin-dialog";
 import { Cloud, CloudOff, KeyRound, Lock, RefreshCw, Unlock } from "lucide-react";
-import { version as appVersion } from "../package.json";
+import { version as packageVersion } from "../package.json";
 import "./App.css";
 import { useDocumentStore } from "./document/documentStore";
 import { usePrefsStore } from "./stores/usePrefsStore";
@@ -31,6 +31,8 @@ import { BackupListModal } from "./components/Backup/BackupListModal";
 import { AboutModal } from "./components/About/AboutModal";
 import { ConflictBanner } from "./components/Drive/ConflictBanner";
 import { Toast } from "./components/Toast/Toast";
+
+const appVersion = packageVersion.split(".")[0];
 
 let startupRan = false;
 
