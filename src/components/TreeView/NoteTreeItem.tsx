@@ -335,7 +335,7 @@ export function NoteTreeItem({ node, depth, isFiltering = false }: NoteTreeItemP
           type="button"
           className="tree-item__more"
           tabIndex={-1}
-          title="More actions"
+          aria-label="More actions"
           onClick={handleMoreClick}
         >
           <MoreHorizontal size={14} />

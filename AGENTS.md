@@ -8,7 +8,9 @@
   below), then quit any running Rove ToNote and launch the new release build, even if it wasn't
   running before.
 - Before every release build, check `git status`. If there are uncommitted changes, bump the
-  version number first: increment the rightmost digit (e.g. 0.4.0 -> 0.4.1) in `package.json`,
+  version number first. Versions are a simple incrementing number (v5, v6, v7, ...); because
+  Cargo and Tauri require semver, store it as `N.0.0` and increment the first number
+  (e.g. 5.0.0 -> 6.0.0). Update it in `package.json`,
   `package-lock.json` (both the top-level `version` and the root package's entry under
   `packages[""]`), `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `src-tauri/Cargo.lock`
   (the version of the `tonote` package entry). If the working tree is
