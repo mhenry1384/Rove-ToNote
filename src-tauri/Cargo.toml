@@ -1,6 +1,6 @@
 [package]
 name = "tonote"
-version = "10.0.0"
+version = "11.0.0"
 description = "Rove ToNote — a markdown note & to-do desktop app"
 authors = ["you"]
 edition = "2021"

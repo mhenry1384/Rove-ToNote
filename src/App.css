@@ -1256,14 +1256,14 @@ body {
   padding: 6px 2px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--on-image-muted, var(--text-muted));
   font-size: 0.8rem;
   text-align: left;
   cursor: pointer;
 }
 
 .todo-editor__completed-toggle:hover {
-  color: var(--text);
+  color: var(--on-image-hover, var(--text));
 }
 
 .todo-editor__completed-delete {
@@ -1273,12 +1273,12 @@ body {
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--on-image-muted, var(--text-muted));
   cursor: pointer;
 }
 
 .todo-editor__completed-delete:hover {
-  color: var(--text);
+  color: var(--on-image-hover, var(--text));
   background: var(--bg-subtle);
 }
 
@@ -1352,7 +1352,7 @@ body {
   padding: 2px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--on-image-muted, var(--text-muted));
   cursor: grab;
   visibility: hidden;
 }
@@ -1512,13 +1512,13 @@ body {
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--on-image-muted, var(--text-muted));
   cursor: pointer;
 }
 
 .todo-item-notes__delete:hover {
   background: var(--bg-hover);
-  color: var(--text);
+  color: var(--on-image-hover, var(--text));
 }
 
 .todo-item-notes__add {
@@ -1580,7 +1580,7 @@ body {
 
 .note-editor--colored .todo-editor__completed-toggle,
 .note-editor--colored .todo-editor__completed-delete {
-  color: rgba(0, 0, 0, 0.55);
+  color: var(--on-image-muted, rgba(0, 0, 0, 0.55));
 }
 
 /* Google Drive conflict banner */
