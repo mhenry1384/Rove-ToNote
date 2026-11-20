@@ -1,6 +1,6 @@
 [package]
 name = "tonote"
-version = "8.0.0"
+version = "9.0.0"
 description = "Rove ToNote — a markdown note & to-do desktop app"
 authors = ["you"]
 edition = "2021"
@@ -27,4 +27,5 @@ tauri-plugin-persisted-scope = "2.3.7"
 tauri-plugin-opener = "2"
 keyring = { version = "3", features = ["windows-native", "apple-native"] }
 tokio = { version = "1", features = ["net", "time", "io-util", "rt-multi-thread", "macros"] }
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
 

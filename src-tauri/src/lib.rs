@@ -47,6 +47,32 @@ async fn popup_context_menu(
     .map_err(|e| e.to_string())
 }
 
+// Downloads an image's raw bytes for the webview to analyze (e.g. a note
+// background's brightness). Done here because many image hosts don't send
+// CORS headers, and the webview can't read pixels from such images.
+#[tauri::command]
+async fn fetch_image_bytes(url: String) -> Result<tauri::ipc::Response, String> {
+    const MAX_BYTES: usize = 40 * 1024 * 1024;
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("only http(s) URLs are supported".into());
+    }
+    let resp = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36")
+        .build()
+        .map_err(|e| e.to_string())?
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .error_for_status()
+        .map_err(|e| e.to_string())?;
+    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+    if bytes.len() > MAX_BYTES {
+        return Err("image too large".into());
+    }
+    Ok(tauri::ipc::Response::new(bytes.to_vec()))
+}
+
 // Most app logic (tree ops, markdown parsing, crypto, todo parsing, local
 // file IO) lives in TypeScript. The `drive` module is the one exception: a
 // webview can't open a raw TCP listener or reach the OS keychain, so the
@@ -70,6 +96,7 @@ pub fn run() {
             open_new_instance,
             get_startup_arg,
             popup_context_menu,
+            fetch_image_bytes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

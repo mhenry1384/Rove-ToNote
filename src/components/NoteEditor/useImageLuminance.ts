@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 /** Relative luminance (WCAG, 0 = black, 1 = white) of an sRGB color. */
 function relativeLuminance(r: number, g: number, b: number): number {
@@ -21,13 +22,13 @@ export function hexLuminance(hex: string): number | null {
 
 const cache = new Map<string, number | null>();
 
-/** Average luminance of the image at `url`, sampled on a small canvas.
- * Returns null while loading, or if the image can't be read (e.g. the host
- * doesn't send CORS headers, which taints the canvas). */
-function measureImage(url: string): Promise<number | null> {
+/** Average luminance of the image at `src`, sampled on a small canvas, or
+ * null if it can't be loaded or read (a cross-origin image whose host sends
+ * no CORS headers taints the canvas). */
+function measureImageSrc(src: string, crossOrigin: boolean): Promise<number | null> {
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (crossOrigin) img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
         const size = 48;
@@ -51,8 +52,26 @@ function measureImage(url: string): Promise<number | null> {
       }
     };
     img.onerror = () => resolve(null);
-    img.src = url;
+    img.src = src;
   });
+}
+
+/** Tries the image directly first; if the host blocks pixel access (no CORS
+ * headers), downloads it through the Rust side and measures a local blob. */
+async function measureImage(url: string): Promise<number | null> {
+  const direct = await measureImageSrc(url, true);
+  if (direct !== null || !/^https?:\/\//i.test(url)) return direct;
+  try {
+    const bytes = await invoke<ArrayBuffer>("fetch_image_bytes", { url });
+    const blobUrl = URL.createObjectURL(new Blob([bytes]));
+    try {
+      return await measureImageSrc(blobUrl, false);
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
+  } catch {
+    return null;
+  }
 }
 
 export function useImageLuminance(url: string | null | undefined): number | null {
@@ -98,6 +117,6 @@ export function contrastingMutedColors(bgLum: number): { muted: string; hover: s
   const contrastWithBlack = (bgLum + 0.05) / 0.05;
   const contrastWithWhite = 1.05 / (bgLum + 0.05);
   return contrastWithBlack >= contrastWithWhite
-    ? { muted: "rgba(0, 0, 0, 0.62)", hover: "rgba(0, 0, 0, 0.9)" }
-    : { muted: "rgba(255, 255, 255, 0.8)", hover: "#ffffff" };
+    ? { muted: "#000000", hover: "#000000" }
+    : { muted: "#ffffff", hover: "#ffffff" };
 }
