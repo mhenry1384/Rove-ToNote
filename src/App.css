@@ -1452,13 +1452,8 @@ body {
   padding: 3px 5px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
   font-size: 0.75rem;
   cursor: pointer;
-}
-
-.todo-item__notes-indicator:hover {
-  color: var(--text);
 }
 
 /* Over a background image, NoteEditor sets --on-image-muted/--on-image-hover
@@ -1531,13 +1526,8 @@ body {
   padding: 2px 4px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
   font-size: 0.8rem;
   cursor: pointer;
-}
-
-.todo-item-notes__add:hover {
-  color: var(--text);
 }
 
 .todo-item-notes__add:disabled {
