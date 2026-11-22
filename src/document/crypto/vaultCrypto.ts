@@ -22,7 +22,7 @@ function toBase64(bytes: ArrayBuffer | Uint8Array): string {
   return btoa(binary);
 }
 
-function fromBase64(base64: string): Uint8Array {
+function fromBase64(base64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(base64);
   const arr = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);

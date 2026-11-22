@@ -22,3 +22,9 @@
   for one. Build the app bundle only (`pnpm tauri build --bundles app`).
 - On macOS: after a release build, if Rove ToNote is already running, quit it and relaunch it so
   the new build is the one running. If it isn't running, don't start it.
+
+## Debug Builds
+
+- Don't build debug versions (`pnpm tauri dev`, `cargo build`, `cargo run`, or anything else that
+  writes to `src-tauri/target/debug/`) unless the user explicitly asks for one, or you need a debug
+  build to track down an issue. Use release builds otherwise.
