@@ -50,10 +50,10 @@ Settings that only apply to one machine, such as the last opened file, window si
 You need [Node.js](https://nodejs.org/) and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) (Rust and the WebView2 runtime).
 
 ```sh
-npm install
-npm run tauri dev     # run the app with hot reload
-npm test              # run the Vitest unit tests
-npm run tauri build   # build an installer
+pnpm install
+pnpm tauri dev     # run the app with hot reload
+pnpm test              # run the Vitest unit tests
+pnpm tauri build   # build an installer
 ```
 
 ### Google Drive setup
