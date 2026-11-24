@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Rove ToNote",
-  "version": "11.0.0",
+  "version": "12.0.0",
   "identifier": "com.mhenr.tonote",
   "build": {
     "beforeDevCommand": "pnpm dev",
